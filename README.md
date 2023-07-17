@@ -1,4 +1,4 @@
-# OCF Template Repository
+# PVNet summation
 This project is used for training a model to sum the GSP predictions of [PVNet](https://github.com/openclimatefix/PVNet) into a national estimate.
 
 ## Setup
