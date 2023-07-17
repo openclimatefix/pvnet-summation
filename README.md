@@ -8,8 +8,3 @@ cd PVNet_summation
 pip install -r requirements.txt
 pip install git+https://github.com/SheffieldSolar/PV_Live-API
 ```
-
-Do the following to customize the repo to the project:
-
-- Add PyPi access token to release to PyPi
-- Update name of folder in the test workflow
