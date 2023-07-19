@@ -1,4 +1,4 @@
-name: ocf_template
+name: pvnet_summation
 channels:
   - pytorch
   - conda-forge

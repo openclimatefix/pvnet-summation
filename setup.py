@@ -12,7 +12,7 @@ setup(
     name="PVNet_summation",
     version="0.0.1",
     license="MIT",
-    description="Package for training summation model for PVNet"
+    description="Package for training summation model for PVNet",
     author="James Fulton",
     author_email="info@openclimatefix.org",
     company="Open Climate Fix Ltd",
