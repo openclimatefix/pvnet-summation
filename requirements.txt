@@ -1,7 +1,7 @@
 nowcasting_utils
 nowcasting_datamodel==1.4.14
 ocf_datapipes==1.2.44
-pvnet==2.1.15
+pvnet==2.1.16
 ocf_ml_metrics
 numpy
 pandas
