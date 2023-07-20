@@ -1,0 +1,6 @@
+_target_: pvnet_summation.data.datamodule.DataModule
+batch_dir: "/mnt/disks/bigbatches/concurrent_batches_v3.6_-60mins"
+gsp_zarr_path: "/mnt/disks/nwp/pv_gsp.zarr"
+batch_size: 8
+num_workers: 20
+prefetch_factor: 2
