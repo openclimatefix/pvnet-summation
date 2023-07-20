@@ -135,7 +135,8 @@ class BaseModel(PVNetBaseModel):
 
     def training_step(self, batch, batch_idx):
         """Run training step"""
-        y_hat = self.forward(batch['pvnet_inputs'])
+        
+        y_hat = self.forward(batch)
         y = batch["national_targets"]
         times = batch["times"]
 
@@ -152,7 +153,8 @@ class BaseModel(PVNetBaseModel):
                 
     def validation_step(self, batch: dict, batch_idx):
         """Run validation step"""
-        y_hat = self.forward(batch['pvnet_inputs'])
+        
+        y_hat = self.forward(batch)
         y = batch["national_targets"]
         times = batch["times"]
 
@@ -201,7 +203,8 @@ class BaseModel(PVNetBaseModel):
 
     def test_step(self, batch, batch_idx):
         """Run test step"""
-        y_hat = self.forward(batch['pvnet_inputs'])
+        
+        y_hat = self.forward(batch)
         y = batch["national_targets"]
 
         losses = self._calculate_common_losses(y, y_hat)

@@ -66,8 +66,13 @@ class Model(BaseModel):
 
 
     def forward(self, x):
-        """Run central model forward"""
-        pvnet_out = self.predict_pvnet_batch(x)
+        """Run model forward"""
+        
+        if "pvnet_outputs" in x:
+            pvnet_out = x["pvnet_outputs"]
+        else:
+            pvnet_out = self.predict_pvnet_batch(x['pvnet_inputs'])
+        
         pvnet_out = torch.flatten(pvnet_out, start_dim=1)
         out = self.model(pvnet_out)
         
