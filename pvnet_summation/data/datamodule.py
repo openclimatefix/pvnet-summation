@@ -152,10 +152,13 @@ class DataModule(LightningDataModule):
         
         if shuffle:
             file_pipeline = file_pipeline.shuffle(buffer_size=1000)
-        if add_filename:
-            file_pipeline, file_pipeline_copy = file_pipeline.fork(2, buffer_size=50)
+            
+        file_pipeline = file_pipeline.sharding_filter()
         
-        sample_pipeline = file_pipeline.sharding_filter().map(torch.load)
+        if add_filename:
+            file_pipeline, file_pipeline_copy = file_pipeline.fork(2, buffer_size=5)
+        
+        sample_pipeline = file_pipeline.map(torch.load)
         
         # Find national outout simultaneous to concurrent samples
         gsp_data = (
