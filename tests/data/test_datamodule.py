@@ -48,7 +48,7 @@ def test_iter_multiprocessing(sample_data):
         prefetch_factor=2,
     )
     
-    for i, batch in zip(range(2), dm.train_dataloader()):
+    for batch in dm.train_dataloader():
         # batch size is 2
         assert len(batch['pvnet_inputs'])==2
 

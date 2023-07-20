@@ -13,23 +13,23 @@ from pvnet.data.datamodule import (
     batch_to_tensor,
     split_batches,
 )
+# https://github.com/pytorch/pytorch/issues/973
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 
 class GetNationalPVLive(IterDataPipe):
-    def __init__(self, gsp_zarr_path, sample_datapipe, return_times=False):
-        self.gsp_datapipe = OpenGSP(
-            gsp_pv_power_zarr_path=gsp_zarr_path
-        ).map(normalize_gsp)
+    def __init__(self, gsp_data, sample_datapipe, return_times=False):
+        self.gsp_data = gsp_data
         self.sample_datapipe = sample_datapipe
         self.return_times = return_times
     
     def __iter__(self):
-        gsp_data = next(iter(self.gsp_datapipe)).sel(gsp_id=0).compute()
+        gsp_data = self.gsp_data
         for sample in self.sample_datapipe:
             # Times for each GSP in the sample batch should be the same - take first
             id0 = sample[BatchKey.gsp_t0_idx]
             times = sample[BatchKey.gsp_time_utc][0, id0+1:]
-            national_outputs = torch.from_numpy(
+            national_outputs = torch.as_tensor(
                 gsp_data.sel(time_utc=times.cpu().numpy().astype("datetime64[s]")).values
             )
             
@@ -91,14 +91,18 @@ class DataModule(LightningDataModule):
     def _get_premade_batches_datapipe(self, subdir, shuffle=False):
         data_pipeline = FileLister(f"{self.batch_dir}/{subdir}", masks="*.pt", recursive=False)
         if shuffle:
-            data_pipeline = data_pipeline.shuffle(buffer_size=10_000)
+            data_pipeline = data_pipeline.shuffle(buffer_size=1000)
         
         data_pipeline = data_pipeline.sharding_filter().map(torch.load)
         
         # Add the national target
         data_pipeline, dp = data_pipeline.fork(2, buffer_size=5)
+        
+        gsp_datapipe = OpenGSP(gsp_pv_power_zarr_path=self.gsp_zarr_path).map(normalize_gsp)
+        gsp_data = next(iter(gsp_datapipe)).sel(gsp_id=0).compute()
+        
         national_targets_datapipe, times_datapipe = (
-            GetNationalPVLive(self.gsp_zarr_path, dp, return_times=True).unzip(sequence_length=2)
+            GetNationalPVLive(gsp_data, dp, return_times=True).unzip(sequence_length=2)
         )
         data_pipeline = data_pipeline.zip(national_targets_datapipe, times_datapipe)
         

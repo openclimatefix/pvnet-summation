@@ -1,8 +1,6 @@
 """Run training
 """
 
-
-
 import torch
 
 try:
