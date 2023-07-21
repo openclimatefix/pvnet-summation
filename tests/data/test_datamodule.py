@@ -13,6 +13,7 @@ def test_init(sample_data):
         prefetch_factor=2,
     )
 
+
 def test_iter(sample_data):
     batch_dir, gsp_zarr_dir = sample_data
 
@@ -23,20 +24,21 @@ def test_iter(sample_data):
         num_workers=0,
         prefetch_factor=2,
     )
-    
+
     batch = next(iter(dm.train_dataloader()))
-    
+
     # batch size is 2
-    assert len(batch['pvnet_inputs'])==2
-    
+    assert len(batch["pvnet_inputs"]) == 2
+
     # 317 GSPs in each sample
     # 21 timestamps for each GSP from -120 mins to +480 mins
-    assert batch['pvnet_inputs'][0][BatchKey.gsp_time_utc].shape==(317,21)
-    
-    assert batch['times'].shape==(2, 16)
-    
-    assert batch['national_targets'].shape==(2, 16)
-    
+    assert batch["pvnet_inputs"][0][BatchKey.gsp_time_utc].shape == (317, 21)
+
+    assert batch["times"].shape == (2, 16)
+
+    assert batch["national_targets"].shape == (2, 16)
+
+
 def test_iter_multiprocessing(sample_data):
     batch_dir, gsp_zarr_dir = sample_data
 
@@ -47,15 +49,15 @@ def test_iter_multiprocessing(sample_data):
         num_workers=2,
         prefetch_factor=2,
     )
-    
+
     for batch in dm.train_dataloader():
         # batch size is 2
-        assert len(batch['pvnet_inputs'])==2
+        assert len(batch["pvnet_inputs"]) == 2
 
         # 317 GSPs in each sample
         # 21 timestamps for each GSP from -120 mins to +480 mins
-        assert batch['pvnet_inputs'][0][BatchKey.gsp_time_utc].shape==(317,21)
+        assert batch["pvnet_inputs"][0][BatchKey.gsp_time_utc].shape == (317, 21)
 
-        assert batch['times'].shape==(2, 16)
+        assert batch["times"].shape == (2, 16)
 
-        assert batch['national_targets'].shape==(2, 16)
+        assert batch["national_targets"].shape == (2, 16)

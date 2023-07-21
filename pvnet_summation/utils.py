@@ -8,7 +8,6 @@ import pylab
 def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None):
     """Plot a batch of data and the forecast from that batch"""
 
-
     times_utc = times.cpu().numpy().squeeze().astype("datetime64[s]")
     times_utc = [pd.to_datetime(t) for t in times_utc]
     y = y.cpu().numpy()
@@ -25,9 +24,7 @@ def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None):
         ax.plot(times_utc[i], y[i], marker=".", color="k", label=r"$y$")
 
         if quantiles is None:
-            ax.plot(
-                times_utc[i], y_hat[i], marker=".", color="r", label=r"$\hat{y}$"
-            )
+            ax.plot(times_utc[i], y_hat[i], marker=".", color="r", label=r"$\hat{y}$")
         else:
             cm = pylab.get_cmap("twilight")
             for nq, q in enumerate(quantiles):
