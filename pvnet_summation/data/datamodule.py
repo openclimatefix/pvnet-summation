@@ -273,15 +273,15 @@ class PVNetPresavedDataModule(LightningDataModule):
                     
         if self.batch_size is not None:
         
-            data_pipeline = PivotDictList(data_pipeline.batch(self.batch_size))
-            data_pipeline = DictApply(
-                data_pipeline,
+            batch_pipeline = PivotDictList(sample_pipeline.batch(self.batch_size))
+            batch_pipeline = DictApply(
+                batch_pipeline,
                 pvnet_outputs=torch.stack,
                 national_targets=torch.stack, 
                 times=torch.stack,
             )
         
-        return data_pipeline
+        return batch_pipeline
 
     def train_dataloader(self, shuffle=True):
         """Construct train dataloader"""

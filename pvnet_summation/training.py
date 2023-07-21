@@ -71,8 +71,7 @@ def train(config: DictConfig) -> Optional[float]:
     # Presave batches
     if config.get("presave_pvnet_outputs", False):
         
-        # Set batch size to None so batching is skipped
-        datamodule.batch_size = None
+
         
         save_dir = (
             f"{config.datamodule.batch_dir}/"
@@ -80,29 +79,41 @@ def train(config: DictConfig) -> Optional[float]:
             f"{config.model.model_version}"
         )
         
-        log.info(f"Saving PVNet outputs to {save_dir}")
         
-        os.makedirs(f"{save_dir}/train") 
-        os.makedirs(f"{save_dir}/val")
         
-        for dataloader_func, split in [
-            (datamodule.train_dataloader, "train"), 
-            (datamodule.val_dataloader, "val")
-        ]:
-            log.info(f"Saving {split} outputs")
-            dataloader = dataloader_func(shuffle=False, add_filename=True)
+        if os.path.isdir(save_dir):
+            log.info(
+                f"PVNet output directory already exists: {save_dir}\n"
+                "Skipping saving new outputs. The existing saved outputs will be loaded."
+            )
             
-            for concurrent_sample_dict in tqdm(dataloader):
-                # Run though model and remove
-                pvnet_out = model.predict_pvnet_batch([concurrent_sample_dict["pvnet_inputs"]])[0]
-                del concurrent_sample_dict["pvnet_inputs"]
-                concurrent_sample_dict["pvnet_outputs"] = pvnet_out
+        else:
+            log.info(f"Saving PVNet outputs to {save_dir}")
+        
+            os.makedirs(f"{save_dir}/train") 
+            os.makedirs(f"{save_dir}/val")
+            
+            # Set batch size to None so batching is skipped
+            datamodule.batch_size = None
 
-                # Save pvnet prediction sample
-                filepath = concurrent_sample_dict.pop("filepath")
-                sample_rel_path = filepath.removeprefix(config.datamodule.batch_dir)
-                sample_path = f"{save_dir}{sample_rel_path}"
-                torch.save(concurrent_sample_dict, sample_path)
+            for dataloader_func, split in [
+                (datamodule.train_dataloader, "train"), 
+                (datamodule.val_dataloader, "val")
+            ]:
+                log.info(f"Saving {split} outputs")
+                dataloader = dataloader_func(shuffle=False, add_filename=True)
+
+                for concurrent_sample_dict in tqdm(dataloader):
+                    # Run though model and remove
+                    pvnet_out = model.predict_pvnet_batch([concurrent_sample_dict["pvnet_inputs"]])[0]
+                    del concurrent_sample_dict["pvnet_inputs"]
+                    concurrent_sample_dict["pvnet_outputs"] = pvnet_out
+
+                    # Save pvnet prediction sample
+                    filepath = concurrent_sample_dict.pop("filepath")
+                    sample_rel_path = filepath.removeprefix(config.datamodule.batch_dir)
+                    sample_path = f"{save_dir}{sample_rel_path}"
+                    torch.save(concurrent_sample_dict, sample_path)
         
         
         
