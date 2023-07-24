@@ -16,7 +16,6 @@ from pvnet.optimizers import AbstractOptimizer
 
 from pvnet_summation.utils import plot_forecasts
 
-
 logger = logging.getLogger(__name__)
 
 activities = [torch.profiler.ProfilerActivity.CPU]
@@ -51,7 +50,6 @@ class BaseModel(PVNetBaseModel):
             revision=model_version,
         )
         self.pvnet_model.requires_grad_(False)
-
 
         self._optimizer = optimizer
 
