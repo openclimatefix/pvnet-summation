@@ -60,7 +60,7 @@ class PivotDictList(IterDataPipe):
         """Convert list of dicts to dict of lists
 
         Args:
-            source_datapipe:
+            source_datapipe: Datapipe yielding lists of dicts
         """
         self.source_datapipe = source_datapipe
 
@@ -105,7 +105,7 @@ class ZipperDict(IterDataPipe):
 
     def __iter__(self):
         for outputs in self.source_datapipes:
-            yield {key: value for key, value in zip(self.keys, outputs)}
+            yield {key: value for key, value in zip(self.keys, outputs)} # noqa: B905
 
 
 def get_capacity(batch):
@@ -114,6 +114,7 @@ def get_capacity(batch):
 
 
 def divide(args):
+    """Divide first argument by second"""
     return args[0] / args[1]
 
 

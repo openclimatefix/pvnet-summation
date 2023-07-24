@@ -74,6 +74,7 @@ class BaseModel(PVNetBaseModel):
         self._accumulated_times = PredAccumulator()
 
     def predict_pvnet_batch(self, batch):
+        """Use PVNet model to create predictions for batch"""
         gsp_batches = []
         for sample in batch:
             preds = self.pvnet_model(sample)
@@ -81,6 +82,7 @@ class BaseModel(PVNetBaseModel):
         return torch.stack(gsp_batches)
 
     def sum_of_gsps(self, x):
+        """Compute the sume of the GSP-level predictions"""
         if self.pvnet_model.use_quantile_regression:
             y_hat = self.pvnet_model._quantiles_to_prediction(x["pvnet_outputs"])
         else:
@@ -90,6 +92,7 @@ class BaseModel(PVNetBaseModel):
 
     @property
     def pvnet_output_shape(self):
+        """Return the expected shape of the PVNet outputs"""
         if self.pvnet_model.use_quantile_regression:
             return (317, self.pvnet_model.forecast_len_30, len(self.pvnet_model.output_quantiles))
         else:

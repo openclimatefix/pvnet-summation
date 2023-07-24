@@ -14,6 +14,9 @@ from torch import nn
 from pvnet_summation.models.base_model import BaseModel
 
 
+_default_optimizer = pvnet.optimizers.Adam()
+
+
 class Model(BaseModel):
     """Neural network which combines GSP predictions from PVNet"""
 
@@ -25,10 +28,10 @@ class Model(BaseModel):
         model_version: Optional[str],
         output_quantiles: Optional[list[float]] = None,
         output_network: AbstractLinearNetwork = DefaultFCNet,
-        output_network_kwargs: dict = dict(),
+        output_network_kwargs: Optional[dict] = None,
         scale_pvnet_outputs: bool = False,
         predict_difference_from_sum: bool = False,
-        optimizer: AbstractOptimizer = pvnet.optimizers.Adam(),
+        optimizer: AbstractOptimizer = _default_optimizer,
     ):
         """Neural network which combines GSP predictions from PVNet
 
@@ -51,6 +54,9 @@ class Model(BaseModel):
 
         self.scale_pvnet_outputs = scale_pvnet_outputs
         self.predict_difference_from_sum = predict_difference_from_sum
+        
+        if output_network_kwargs is None:
+            output_network_kwargs = dict()
 
         self.model = output_network(
             in_features=np.product(self.pvnet_output_shape),
