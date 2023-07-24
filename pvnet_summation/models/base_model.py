@@ -16,8 +16,6 @@ from pvnet.optimizers import AbstractOptimizer
 
 from pvnet_summation.utils import plot_forecasts
 
-# from pvnet.models.base_model import BaseModel as PVNetBaseModel
-
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +51,7 @@ class BaseModel(PVNetBaseModel):
             revision=model_version,
         )
         self.pvnet_model.requires_grad_(False)
+
 
         self._optimizer = optimizer
 
