@@ -10,8 +10,8 @@ defaults:
   - hydra: default.yaml
 
 # Whether to loop through the PVNet outputs and save them out before training
-presave_pvnet_outputs: True
-
+presave_pvnet_outputs:
+  True
 
   # enable color logging
 #  - override hydra/hydra_logging: colorlog

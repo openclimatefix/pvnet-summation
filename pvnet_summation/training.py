@@ -15,9 +15,8 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import Logger
 from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig, OmegaConf
-from tqdm import tqdm
-
 from pvnet import utils
+from tqdm import tqdm
 
 from pvnet_summation.data.datamodule import PVNetPresavedDataModule
 
@@ -67,45 +66,42 @@ def train(config: DictConfig) -> Optional[float]:
     # Init lightning model
     log.info(f"Instantiating model <{config.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(config.model)
-    
+
     # Presave batches
     if config.get("presave_pvnet_outputs", False):
-        
-
-        
         save_dir = (
             f"{config.datamodule.batch_dir}/"
             f"{config.model.model_name}/"
             f"{config.model.model_version}"
         )
-        
-        
-        
+
         if os.path.isdir(save_dir):
             log.info(
                 f"PVNet output directory already exists: {save_dir}\n"
                 "Skipping saving new outputs. The existing saved outputs will be loaded."
             )
-            
+
         else:
             log.info(f"Saving PVNet outputs to {save_dir}")
-        
-            os.makedirs(f"{save_dir}/train") 
+
+            os.makedirs(f"{save_dir}/train")
             os.makedirs(f"{save_dir}/val")
-            
-            # Set batch size to None so batching is skipped
+
+            # Set batch size to None so batching is skipped
             datamodule.batch_size = None
 
             for dataloader_func, split in [
-                (datamodule.train_dataloader, "train"), 
-                (datamodule.val_dataloader, "val")
+                (datamodule.train_dataloader, "train"),
+                (datamodule.val_dataloader, "val"),
             ]:
                 log.info(f"Saving {split} outputs")
                 dataloader = dataloader_func(shuffle=False, add_filename=True)
 
                 for concurrent_sample_dict in tqdm(dataloader):
                     # Run though model and remove
-                    pvnet_out = model.predict_pvnet_batch([concurrent_sample_dict["pvnet_inputs"]])[0]
+                    pvnet_out = model.predict_pvnet_batch([concurrent_sample_dict["pvnet_inputs"]])[
+                        0
+                    ]
                     del concurrent_sample_dict["pvnet_inputs"]
                     concurrent_sample_dict["pvnet_outputs"] = pvnet_out
 
@@ -114,14 +110,12 @@ def train(config: DictConfig) -> Optional[float]:
                     sample_rel_path = filepath.removeprefix(config.datamodule.batch_dir)
                     sample_path = f"{save_dir}{sample_rel_path}"
                     torch.save(concurrent_sample_dict, sample_path)
-        
-        
-        
+
         datamodule = PVNetPresavedDataModule(
             batch_dir=save_dir,
-            batch_size=config.datamodule.batch_size, 
+            batch_size=config.datamodule.batch_size,
             num_workers=config.datamodule.num_workers,
-            prefetch_factor=config.datamodule.prefetch_factor
+            prefetch_factor=config.datamodule.prefetch_factor,
         )
 
     # Init lightning loggers
@@ -163,7 +157,6 @@ def train(config: DictConfig) -> Optional[float]:
                 OmegaConf.save(config.model, f"{callback.dirpath}/model_config.yaml")
                 break
 
-    
     trainer: Trainer = hydra.utils.instantiate(
         config.trainer,
         logger=loggers,
@@ -173,7 +166,6 @@ def train(config: DictConfig) -> Optional[float]:
 
     # Train the model completely
     trainer.fit(model=model, datamodule=datamodule)
-
 
     # Make sure everything closed properly
     log.info("Finalizing!")

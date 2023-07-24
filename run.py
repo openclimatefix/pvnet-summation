@@ -12,8 +12,8 @@ except RuntimeError:
     pass
 
 import logging
-import sys
 import os
+import sys
 
 # Tired of seeing these warnings
 import warnings
@@ -34,8 +34,9 @@ def main(config: DictConfig):
     """Runs training"""
     # Imports should be nested inside @hydra.main to optimize tab completion
     # Read more here: https://github.com/facebookresearch/hydra/issues/934
-    from pvnet_summation.training import train
     from pvnet.utils import extras, print_config
+
+    from pvnet_summation.training import train
 
     # A couple of optional utilities:
     # - disabling python warnings

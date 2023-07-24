@@ -3,22 +3,19 @@
 from typing import Optional
 
 import numpy as np
+import pvnet
 import torch
 import torch.nn.functional as F
+from pvnet.models.multimodal.linear_networks.basic_blocks import AbstractLinearNetwork
+from pvnet.models.multimodal.linear_networks.networks import DefaultFCNet
+from pvnet.optimizers import AbstractOptimizer
 from torch import nn
 
-import pvnet
 from pvnet_summation.models.base_model import BaseModel
-from pvnet.optimizers import AbstractOptimizer
-from pvnet.models.multimodal.linear_networks.networks import DefaultFCNet
-from pvnet.models.multimodal.linear_networks.basic_blocks import AbstractLinearNetwork
-
-
 
 
 class Model(BaseModel):
-    """Neural network which combines GSP predictions from PVNet
-    """
+    """Neural network which combines GSP predictions from PVNet"""
 
     name = "pvnet_summation_model"
 
@@ -31,8 +28,7 @@ class Model(BaseModel):
         output_network_kwargs: dict = dict(),
         scale_pvnet_outputs: bool = False,
         predict_difference_from_sum: bool = False,
-        optimizer: AbstractOptimizer  = pvnet.optimizers.Adam(),
-
+        optimizer: AbstractOptimizer = pvnet.optimizers.Adam(),
     ):
         """Neural network which combines GSP predictions from PVNet
 
@@ -45,75 +41,67 @@ class Model(BaseModel):
                 forecast.
             output_network_kwargs: Dictionary of optional kwargs for the `output_network` module.
             scale_pvnet_outputs: If true, the PVNet predictions are scaled by the capacities.
-            predict_difference_from_sum: Whether to use the sum of GSPs as an estimate for the 
+            predict_difference_from_sum: Whether to use the sum of GSPs as an estimate for the
                 national sum and train the model to correct this estimate. Otherwise the model tries
                 to learn the national sum from the PVNet outputs directly.
             optimizer (AbstractOptimizer): Optimizer
         """
 
-        super().__init__( 
-            model_name, 
-            model_version, 
-            optimizer, 
-            output_quantiles
-        )
-        
+        super().__init__(model_name, model_version, optimizer, output_quantiles)
+
         self.scale_pvnet_outputs = scale_pvnet_outputs
         self.predict_difference_from_sum = predict_difference_from_sum
-        
+
         self.model = output_network(
             in_features=np.product(self.pvnet_output_shape),
             out_features=self.num_output_features,
             **output_network_kwargs,
         )
-        
+
         # Add linear layer if predicting difference from sum
         # This allows difference to be positive or negative
         if predict_difference_from_sum:
             self.model = nn.Sequential(
-                self.model,
-                nn.Linear(self.num_output_features, self.num_output_features)
+                self.model, nn.Linear(self.num_output_features, self.num_output_features)
             )
 
         self.save_hyperparameters()
 
-
     def forward(self, x):
         """Run model forward"""
-        
+
         if "pvnet_outputs" not in x:
-            x["pvnet_outputs"] = self.predict_pvnet_batch(x['pvnet_inputs'])
-            
+            x["pvnet_outputs"] = self.predict_pvnet_batch(x["pvnet_inputs"])
+
         if self.scale_pvnet_outputs:
             if self.pvnet_model.use_quantile_regression:
                 eff_cap = x["effective_capacity"].unsqueeze(-1)
             else:
-                eff_cap =  x["effective_capacity"]
-            x_in = x["pvnet_outputs"]*eff_cap
+                eff_cap = x["effective_capacity"]
+            x_in = x["pvnet_outputs"] * eff_cap
         else:
             x_in = x["pvnet_outputs"]
-        
+
         x_in = torch.flatten(x_in, start_dim=1)
         out = self.model(x_in)
-        
+
         if self.use_quantile_regression:
             # Shape: batch_size, seq_length * num_quantiles
             out = out.reshape(out.shape[0], self.forecast_len_30, len(self.output_quantiles))
-        
+
         if self.predict_difference_from_sum:
             # If PVNet model uses quantiles, need to expand to match shape
             if self.pvnet_model.use_quantile_regression:
                 eff_cap = x["effective_capacity"].unsqueeze(-1)
             else:
                 eff_cap = x["effective_capacity"]
-            
+
             gsp_sum = (x["pvnet_outputs"] * eff_cap).sum(dim=1)
-            
-            # 
+
+            #
             if self.use_quantile_regression:
                 gsp_sum = gsp_sum.unsqueeze(-1)
-                
-            out = F.leaky_relu(gsp_sum + out)
-        
-        return out
 
+            out = F.leaky_relu(gsp_sum + out)
+
+        return out

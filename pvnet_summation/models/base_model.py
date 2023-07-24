@@ -1,28 +1,22 @@
 """Base model for all PVNet submodels"""
-import json
 import logging
-import os
-from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Optional
 
-import hydra
+import lightning.pytorch as pl
 import torch
 import wandb
 from nowcasting_utils.models.loss import WeightedLosses
-import lightning.pytorch as pl
-from torch import nn
-from pvnet.models.base_model import PVNetModelHubMixin, BaseModel as PVNetBaseModel
-
-from pvnet.models.utils import  (
+from pvnet.models.base_model import BaseModel as PVNetBaseModel
+from pvnet.models.base_model import PVNetModelHubMixin
+from pvnet.models.utils import (
     MetricAccumulator,
     PredAccumulator,
 )
-
-
 from pvnet.optimizers import AbstractOptimizer
+
 from pvnet_summation.utils import plot_forecasts
 
-#from pvnet.models.base_model import BaseModel as PVNetBaseModel
+# from pvnet.models.base_model import BaseModel as PVNetBaseModel
 
 
 logger = logging.getLogger(__name__)
@@ -52,15 +46,15 @@ class BaseModel(PVNetBaseModel):
                 None the output is a single value.
         """
         pl.LightningModule.__init__(self)
-        PVNetModelHubMixin.__init__(self)       
-        
+        PVNetModelHubMixin.__init__(self)
+
         self.pvnet_model = PVNetBaseModel.from_pretrained(
             model_name,
             revision=model_version,
         )
         self.pvnet_model.requires_grad_(False)
-        
-        self._optimizer = optimizer        
+
+        self._optimizer = optimizer
 
         # Model must have lr to allow tuning
         # This setting is only used when lr is tuned with callback
@@ -79,7 +73,6 @@ class BaseModel(PVNetBaseModel):
         self._accumulated_y_hat = PredAccumulator()
         self._accumulated_y_sum = PredAccumulator()
         self._accumulated_times = PredAccumulator()
-        
 
     def predict_pvnet_batch(self, batch):
         gsp_batches = []
@@ -87,15 +80,15 @@ class BaseModel(PVNetBaseModel):
             preds = self.pvnet_model(sample)
             gsp_batches += [preds]
         return torch.stack(gsp_batches)
-    
+
     def sum_of_gsps(self, x):
         if self.pvnet_model.use_quantile_regression:
             y_hat = self.pvnet_model._quantiles_to_prediction(x["pvnet_outputs"])
         else:
             y_hat = x["pvnet_outputs"]
-            
+
         return (y_hat * x["effective_capacity"]).sum(dim=1)
-    
+
     @property
     def pvnet_output_shape(self):
         if self.pvnet_model.use_quantile_regression:
@@ -139,15 +132,19 @@ class BaseModel(PVNetBaseModel):
             # We only create the figure every 8 log steps
             # This was reduced as it was creating figures too often
             if grad_batch_num % (8 * self.trainer.log_every_n_steps) == 0:
-                fig = plot_forecasts(y, y_hat, times, batch_idx, 
-                                     quantiles=self.output_quantiles, 
-                                     y_sum=y_sum,
+                fig = plot_forecasts(
+                    y,
+                    y_hat,
+                    times,
+                    batch_idx,
+                    quantiles=self.output_quantiles,
+                    y_sum=y_sum,
                 )
                 fig.savefig("latest_logged_train_batch.png")
 
     def training_step(self, batch, batch_idx):
         """Run training step"""
-        
+
         y_hat = self.forward(batch)
         y = batch["national_targets"]
         times = batch["times"]
@@ -163,10 +160,10 @@ class BaseModel(PVNetBaseModel):
         else:
             opt_target = losses["MAE/train"]
         return opt_target
-                
+
     def validation_step(self, batch: dict, batch_idx):
         """Run validation step"""
-        
+
         y_hat = self.forward(batch)
         y = batch["national_targets"]
         times = batch["times"]
@@ -205,9 +202,13 @@ class BaseModel(PVNetBaseModel):
                 y_sum = self._val_y_sum.flush()
                 times = self._val_times.flush()
 
-                fig = plot_forecasts(y, y_hat, times, batch_idx, 
-                                     quantiles=self.output_quantiles, 
-                                     y_sum=y_sum,
+                fig = plot_forecasts(
+                    y,
+                    y_hat,
+                    times,
+                    batch_idx,
+                    quantiles=self.output_quantiles,
+                    y_sum=y_sum,
                 )
 
                 self.logger.experiment.log(
@@ -224,7 +225,7 @@ class BaseModel(PVNetBaseModel):
 
     def test_step(self, batch, batch_idx):
         """Run test step"""
-        
+
         y_hat = self.forward(batch)
         y = batch["national_targets"]
 
@@ -240,7 +241,6 @@ class BaseModel(PVNetBaseModel):
         )
 
         return logged_losses
-
 
     def configure_optimizers(self):
         """Configure the optimizers using learning rate found with LR finder if used"""
