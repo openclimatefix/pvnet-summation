@@ -37,7 +37,6 @@ class BaseModel(PVNetBaseModel):
 
     def __init__(
         self,
-        forecast_minutes: int,
         model_name: str,
         model_version: Optional[str],
         optimizer: AbstractOptimizer,
@@ -46,7 +45,6 @@ class BaseModel(PVNetBaseModel):
         """Abtstract base class for PVNet summation submodels.
 
         Args:
-            forecast_minutes (int): Length of the GSP forecast period in minutes
             model_name: Model path either locally or on huggingface.
             model_version: Model version if using huggingface. Set to None if using local.
             optimizer (AbstractOptimizer): Optimizer
@@ -54,26 +52,7 @@ class BaseModel(PVNetBaseModel):
                 None the output is a single value.
         """
         pl.LightningModule.__init__(self)
-        PVNetModelHubMixin.__init__(self)        
-
-        self._optimizer = optimizer
-
-        # Model must have lr to allow tuning
-        # This setting is only used when lr is tuned with callback
-        self.lr = None
-
-        self.forecast_minutes = forecast_minutes
-        self.output_quantiles = output_quantiles
-
-        # Number of timestemps for 30 minutely data
-        self.forecast_len_30 = forecast_minutes // 30
-
-        self.weighted_losses = WeightedLosses(forecast_length=self.forecast_len_30)
-
-        self._accumulated_metrics = MetricAccumulator()
-        self._accumulated_y = PredAccumulator()
-        self._accumulated_y_hat = PredAccumulator()
-        self._accumulated_times = PredAccumulator()
+        PVNetModelHubMixin.__init__(self)       
         
         self.pvnet_model = PVNetBaseModel.from_pretrained(
             model_name,
@@ -81,12 +60,41 @@ class BaseModel(PVNetBaseModel):
         )
         self.pvnet_model.requires_grad_(False)
         
+        self._optimizer = optimizer        
+
+        # Model must have lr to allow tuning
+        # This setting is only used when lr is tuned with callback
+        self.lr = None
+
+        self.forecast_minutes = self.pvnet_model.forecast_minutes
+        self.output_quantiles = output_quantiles
+
+        # Number of timestemps for 30 minutely data
+        self.forecast_len_30 = self.forecast_minutes // 30
+
+        self.weighted_losses = WeightedLosses(forecast_length=self.forecast_len_30)
+
+        self._accumulated_metrics = MetricAccumulator()
+        self._accumulated_y = PredAccumulator()
+        self._accumulated_y_hat = PredAccumulator()
+        self._accumulated_y_sum = PredAccumulator()
+        self._accumulated_times = PredAccumulator()
+        
+
     def predict_pvnet_batch(self, batch):
         gsp_batches = []
         for sample in batch:
             preds = self.pvnet_model(sample)
             gsp_batches += [preds]
         return torch.stack(gsp_batches)
+    
+    def sum_of_gsps(self, x):
+        if self.pvnet_model.use_quantile_regression:
+            y_hat = self.pvnet_model._quantiles_to_prediction(x["pvnet_outputs"])
+        else:
+            y_hat = x["pvnet_outputs"]
+            
+        return (y_hat * x["effective_capacity"]).sum(dim=1)
     
     @property
     def pvnet_output_shape(self):
@@ -95,8 +103,7 @@ class BaseModel(PVNetBaseModel):
         else:
             return (317, self.pvnet_model.forecast_len_30)
 
-
-    def _training_accumulate_log(self, batch_idx, losses, y_hat, y, times):
+    def _training_accumulate_log(self, batch_idx, losses, y_hat, y, y_sum, times):
         """Internal function to accumulate training batches and log results.
 
         This is used when accummulating grad batches. Should make the variability in logged training
@@ -110,12 +117,14 @@ class BaseModel(PVNetBaseModel):
         self._accumulated_metrics.append(losses)
         self._accumulated_y_hat.append(y_hat)
         self._accumulated_y.append(y)
+        self._accumulated_y_sum.append(y_sum)
         self._accumulated_times.append(times)
 
         if not self.trainer.fit_loop._should_accumulate():
             losses = self._accumulated_metrics.flush()
             y_hat = self._accumulated_y_hat.flush()
             y = self._accumulated_y.flush()
+            y_sum = self._accumulated_y_sum.flush()
             times = self._accumulated_times.flush()
 
             self.log_dict(
@@ -130,7 +139,10 @@ class BaseModel(PVNetBaseModel):
             # We only create the figure every 8 log steps
             # This was reduced as it was creating figures too often
             if grad_batch_num % (8 * self.trainer.log_every_n_steps) == 0:
-                fig = plot_forecasts(y, y_hat, times, batch_idx, quantiles=self.output_quantiles)
+                fig = plot_forecasts(y, y_hat, times, batch_idx, 
+                                     quantiles=self.output_quantiles, 
+                                     y_sum=y_sum,
+                )
                 fig.savefig("latest_logged_train_batch.png")
 
     def training_step(self, batch, batch_idx):
@@ -139,11 +151,12 @@ class BaseModel(PVNetBaseModel):
         y_hat = self.forward(batch)
         y = batch["national_targets"]
         times = batch["times"]
+        y_sum = self.sum_of_gsps(batch)
 
         losses = self._calculate_common_losses(y, y_hat)
         losses = {f"{k}/train": v for k, v in losses.items()}
 
-        self._training_accumulate_log(batch_idx, losses, y_hat, y, times)
+        self._training_accumulate_log(batch_idx, losses, y_hat, y, y_sum, times)
 
         if self.use_quantile_regression:
             opt_target = losses["quantile_loss/train"]
@@ -157,6 +170,7 @@ class BaseModel(PVNetBaseModel):
         y_hat = self.forward(batch)
         y = batch["national_targets"]
         times = batch["times"]
+        y_sum = self.sum_of_gsps(batch)
 
         losses = self._calculate_common_losses(y, y_hat)
         losses.update(self._calculate_val_losses(y, y_hat))
@@ -176,19 +190,25 @@ class BaseModel(PVNetBaseModel):
             if not hasattr(self, "_val_y_hats"):
                 self._val_y_hats = PredAccumulator()
                 self._val_y = PredAccumulator()
+                self._val_y_sum = PredAccumulator()
                 self._val_times = PredAccumulator()
 
             self._val_y_hats.append(y_hat)
             self._val_y.append(y)
+            self._val_y_sum.append(y_sum)
             self._val_times.append(times)
 
             # if batch had accumulated
             if (batch_idx + 1) % self.trainer.accumulate_grad_batches == 0:
                 y_hat = self._val_y_hats.flush()
                 y = self._val_y.flush()
+                y_sum = self._val_y_sum.flush()
                 times = self._val_times.flush()
 
-                fig = plot_forecasts(y, y_hat, times, batch_idx, quantiles=self.output_quantiles)
+                fig = plot_forecasts(y, y_hat, times, batch_idx, 
+                                     quantiles=self.output_quantiles, 
+                                     y_sum=y_sum,
+                )
 
                 self.logger.experiment.log(
                     {
@@ -197,6 +217,7 @@ class BaseModel(PVNetBaseModel):
                 )
                 del self._val_y_hats
                 del self._val_y
+                del self._val_y_sum
                 del self._val_times
 
         return logged_losses

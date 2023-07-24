@@ -5,7 +5,7 @@ import pandas as pd
 import pylab
 
 
-def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None):
+def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None, y_sum=None):
     """Plot a batch of data and the forecast from that batch"""
 
 
@@ -13,6 +13,7 @@ def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None):
     times_utc = [pd.to_datetime(t) for t in times_utc]
     y = y.cpu().numpy()
     y_hat = y_hat.cpu().numpy()
+    y_sum = y_sum.cpu().numpy() if (y_sum is not None) else None
 
     batch_size = y.shape[0]
 
@@ -22,7 +23,10 @@ def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None):
         if i >= batch_size:
             ax.axis("off")
             continue
+            
         ax.plot(times_utc[i], y[i], marker=".", color="k", label=r"$y$")
+        if y_sum is not None:
+            ax.plot(times_utc[i], y_sum[i], marker=".", linestyle="--", color="k", label=r"$y_{sum}$")
 
         if quantiles is None:
             ax.plot(

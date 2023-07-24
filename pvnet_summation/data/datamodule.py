@@ -113,6 +113,14 @@ class ZipperDict(IterDataPipe):
         for outputs in self.source_datapipes:
             yield {key: value for key, value in zip(self.keys, outputs)}
 
+
+def get_capacity(batch):
+    """Extract the capacity from the numpy batch"""
+    return batch[BatchKey.gsp_effective_capacity_mwp]
+
+def divide(args):
+    return args[0]/args[1]
+
             
 class DataModule(LightningDataModule):
     """Datamodule for training pvnet_summation."""
@@ -171,24 +179,34 @@ class DataModule(LightningDataModule):
         )
         
         sample_pipeline, sample_pipeline_copy = sample_pipeline.fork(2, buffer_size=5)
+        times_datapipe = GetBatchTime(sample_pipeline_copy)
         
-        times_datapipe, times_datapipe_copy = (
-            GetBatchTime(sample_pipeline_copy).fork(2, buffer_size=5)
-        )
-        
+        times_datapipe, times_datapipe_copy = times_datapipe.fork(2, buffer_size=5)
         national_targets_datapipe = GetNationalPVLive(gsp_data, times_datapipe_copy)
+        
+        times_datapipe, times_datapipe_copy = times_datapipe.fork(2, buffer_size=5)
+        national_capacity_datapipe = GetNationalPVLive(
+            gsp_data.effective_capacity_mwp, 
+            times_datapipe_copy
+        )
+        sample_pipeline, sample_pipeline_copy = sample_pipeline.fork(2, buffer_size=5)
+        gsp_capacity_pipeline = sample_pipeline_copy.map(get_capacity)
+        
+        capacity_pipeline = gsp_capacity_pipeline.zip(national_capacity_datapipe).map(divide)
         
         # Compile the samples
         if add_filename:
             data_pipeline = ZipperDict(
                 pvnet_inputs = sample_pipeline,
+                effective_capacity = capacity_pipeline,
                 national_targets = national_targets_datapipe, 
-                times = times_datapipe, 
+                times = times_datapipe,
                 filepath = file_pipeline_copy,
             )
         else:
             data_pipeline = ZipperDict(
                 pvnet_inputs = sample_pipeline,
+                effective_capacity = capacity_pipeline,
                 national_targets = national_targets_datapipe, 
                 times = times_datapipe, 
             )         
@@ -197,7 +215,8 @@ class DataModule(LightningDataModule):
         
             data_pipeline = PivotDictList(data_pipeline.batch(self.batch_size))
             data_pipeline = DictApply(
-                data_pipeline, 
+                data_pipeline,
+                effective_capacity=torch.stack, 
                 national_targets=torch.stack, 
                 times=torch.stack,
             )
@@ -276,6 +295,7 @@ class PVNetPresavedDataModule(LightningDataModule):
             batch_pipeline = PivotDictList(sample_pipeline.batch(self.batch_size))
             batch_pipeline = DictApply(
                 batch_pipeline,
+                effective_capacity=torch.stack, 
                 pvnet_outputs=torch.stack,
                 national_targets=torch.stack, 
                 times=torch.stack,
