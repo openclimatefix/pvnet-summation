@@ -110,7 +110,6 @@ def sample_batch(sample_datamodule):
 @pytest.fixture()
 def model_kwargs():
     kwargs = dict(
-        forecast_minutes=480,
         model_name= "openclimatefix/pvnet_v2",
         model_version= "898630f3f8cd4e8506525d813dd61c6d8de86144",
     )
