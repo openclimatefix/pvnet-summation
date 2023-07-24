@@ -1,28 +1,22 @@
 """Base model for all PVNet submodels"""
-import json
 import logging
-import os
-from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Optional
 
-import hydra
+import lightning.pytorch as pl
 import torch
 import wandb
 from nowcasting_utils.models.loss import WeightedLosses
-import lightning.pytorch as pl
-from torch import nn
-from pvnet.models.base_model import PVNetModelHubMixin, BaseModel as PVNetBaseModel
-
-from pvnet.models.utils import  (
+from pvnet.models.base_model import BaseModel as PVNetBaseModel
+from pvnet.models.base_model import PVNetModelHubMixin
+from pvnet.models.utils import (
     MetricAccumulator,
     PredAccumulator,
 )
-
-
 from pvnet.optimizers import AbstractOptimizer
+
 from pvnet_summation.utils import plot_forecasts
 
-#from pvnet.models.base_model import BaseModel as PVNetBaseModel
+# from pvnet.models.base_model import BaseModel as PVNetBaseModel
 
 
 logger = logging.getLogger(__name__)
@@ -54,7 +48,7 @@ class BaseModel(PVNetBaseModel):
                 None the output is a single value.
         """
         pl.LightningModule.__init__(self)
-        PVNetModelHubMixin.__init__(self)        
+        PVNetModelHubMixin.__init__(self)
 
         self._optimizer = optimizer
 
@@ -74,27 +68,26 @@ class BaseModel(PVNetBaseModel):
         self._accumulated_y = PredAccumulator()
         self._accumulated_y_hat = PredAccumulator()
         self._accumulated_times = PredAccumulator()
-        
+
         self.pvnet_model = PVNetBaseModel.from_pretrained(
             model_name,
             revision=model_version,
         )
         self.pvnet_model.requires_grad_(False)
-        
+
     def predict_pvnet_batch(self, batch):
         gsp_batches = []
         for sample in batch:
             preds = self.pvnet_model(sample)
             gsp_batches += [preds]
         return torch.stack(gsp_batches)
-    
+
     @property
     def pvnet_output_shape(self):
         if self.pvnet_model.use_quantile_regression:
             return (317, self.pvnet_model.forecast_len_30, len(self.pvnet_model.output_quantiles))
         else:
             return (317, self.pvnet_model.forecast_len_30)
-
 
     def _training_accumulate_log(self, batch_idx, losses, y_hat, y, times):
         """Internal function to accumulate training batches and log results.
@@ -135,7 +128,8 @@ class BaseModel(PVNetBaseModel):
 
     def training_step(self, batch, batch_idx):
         """Run training step"""
-        y_hat = self.forward(batch['pvnet_inputs'])
+
+        y_hat = self.forward(batch)
         y = batch["national_targets"]
         times = batch["times"]
 
@@ -149,10 +143,11 @@ class BaseModel(PVNetBaseModel):
         else:
             opt_target = losses["MAE/train"]
         return opt_target
-                
+
     def validation_step(self, batch: dict, batch_idx):
         """Run validation step"""
-        y_hat = self.forward(batch['pvnet_inputs'])
+
+        y_hat = self.forward(batch)
         y = batch["national_targets"]
         times = batch["times"]
 
@@ -201,7 +196,8 @@ class BaseModel(PVNetBaseModel):
 
     def test_step(self, batch, batch_idx):
         """Run test step"""
-        y_hat = self.forward(batch['pvnet_inputs'])
+
+        y_hat = self.forward(batch)
         y = batch["national_targets"]
 
         losses = self._calculate_common_losses(y, y_hat)
@@ -216,7 +212,6 @@ class BaseModel(PVNetBaseModel):
         )
 
         return logged_losses
-
 
     def configure_optimizers(self):
         """Configure the optimizers using learning rate found with LR finder if used"""

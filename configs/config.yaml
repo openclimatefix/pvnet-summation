@@ -9,6 +9,10 @@ defaults:
   - logger: wandb.yaml # set logger here or use command line (e.g. `python run.py logger=wandb`)
   - hydra: default.yaml
 
+# Whether to loop through the PVNet outputs and save them out before training
+presave_pvnet_outputs:
+  True
+
   # enable color logging
 #  - override hydra/hydra_logging: colorlog
 #  - override hydra/job_logging: colorlog

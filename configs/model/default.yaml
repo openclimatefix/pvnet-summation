@@ -18,7 +18,6 @@ output_network_kwargs:
   res_block_layers: 2
   dropout_frac: 0.0
 
-
 # Foreast and time settings
 forecast_minutes: 480
 

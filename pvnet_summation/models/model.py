@@ -3,21 +3,17 @@
 from typing import Optional
 
 import numpy as np
-import torch
-
 import pvnet
-from pvnet_summation.models.base_model import BaseModel
-from pvnet.optimizers import AbstractOptimizer
-from pvnet.models.multimodal.linear_networks.networks import DefaultFCNet
+import torch
 from pvnet.models.multimodal.linear_networks.basic_blocks import AbstractLinearNetwork
+from pvnet.models.multimodal.linear_networks.networks import DefaultFCNet
+from pvnet.optimizers import AbstractOptimizer
 
-
+from pvnet_summation.models.base_model import BaseModel
 
 
 class Model(BaseModel):
-    """Neural network which combines GSP predictions from PVNet
-
-    """
+    """Neural network which combines GSP predictions from PVNet"""
 
     name = "pvnet_summation_model"
 
@@ -29,8 +25,7 @@ class Model(BaseModel):
         output_quantiles: Optional[list[float]] = None,
         output_network: AbstractLinearNetwork = DefaultFCNet,
         output_network_kwargs: dict = dict(),
-        optimizer: AbstractOptimizer  = pvnet.optimizers.Adam(),
-
+        optimizer: AbstractOptimizer = pvnet.optimizers.Adam(),
     ):
         """Neural network which combines GSP predictions from PVNet
 
@@ -46,16 +41,10 @@ class Model(BaseModel):
             optimizer (AbstractOptimizer): Optimizer
         """
 
-        super().__init__(
-            forecast_minutes, 
-            model_name, 
-            model_version, 
-            optimizer, 
-            output_quantiles
-        )
+        super().__init__(forecast_minutes, model_name, model_version, optimizer, output_quantiles)
 
         in_features = np.product(self.pvnet_output_shape)
-        
+
         self.model = output_network(
             in_features=in_features,
             out_features=self.num_output_features,
@@ -64,16 +53,19 @@ class Model(BaseModel):
 
         self.save_hyperparameters()
 
-
     def forward(self, x):
-        """Run central model forward"""
-        pvnet_out = self.predict_pvnet_batch(x)
+        """Run model forward"""
+
+        if "pvnet_outputs" in x:
+            pvnet_out = x["pvnet_outputs"]
+        else:
+            pvnet_out = self.predict_pvnet_batch(x["pvnet_inputs"])
+
         pvnet_out = torch.flatten(pvnet_out, start_dim=1)
         out = self.model(pvnet_out)
-        
+
         if self.use_quantile_regression:
             # Shape: batch_size, seq_length * num_quantiles
             out = out.reshape(out.shape[0], self.forecast_len_30, len(self.output_quantiles))
-        
-        return out
 
+        return out
