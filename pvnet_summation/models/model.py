@@ -13,7 +13,6 @@ from torch import nn
 
 from pvnet_summation.models.base_model import BaseModel
 
-
 _default_optimizer = pvnet.optimizers.Adam()
 
 
@@ -54,7 +53,7 @@ class Model(BaseModel):
 
         self.scale_pvnet_outputs = scale_pvnet_outputs
         self.predict_difference_from_sum = predict_difference_from_sum
-        
+
         if output_network_kwargs is None:
             output_network_kwargs = dict()
 

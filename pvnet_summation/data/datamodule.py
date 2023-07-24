@@ -105,7 +105,7 @@ class ZipperDict(IterDataPipe):
 
     def __iter__(self):
         for outputs in self.source_datapipes:
-            yield {key: value for key, value in zip(self.keys, outputs)} # noqa: B905
+            yield {key: value for key, value in zip(self.keys, outputs)}  # noqa: B905
 
 
 def get_capacity(batch):
