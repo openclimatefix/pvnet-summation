@@ -3,7 +3,7 @@ import pytest
 
 
 def test_model_forward(model, sample_batch):
-    y = model.forward(sample_batch["pvnet_inputs"])
+    y = model.forward(sample_batch)
 
     # check output is the correct shape
     # batch size=2, forecast_len=16
@@ -13,14 +13,14 @@ def test_model_forward(model, sample_batch):
 def test_model_backward(model, sample_batch):
     opt = SGD(model.parameters(), lr=0.001)
 
-    y = model(sample_batch["pvnet_inputs"])
+    y = model(sample_batch)
 
     # Backwards on sum drives sum to zero
     y.sum().backward()
 
 
 def test_quantile_model_forward(quantile_model, sample_batch):
-    y_quantiles = quantile_model(sample_batch["pvnet_inputs"])
+    y_quantiles = quantile_model(sample_batch)
 
     # check output is the correct shape
     # batch size=2, forecast_len=15, num_quantiles=3
@@ -30,7 +30,7 @@ def test_quantile_model_forward(quantile_model, sample_batch):
 def test_quantile_model_backward(quantile_model, sample_batch):
     opt = SGD(quantile_model.parameters(), lr=0.001)
 
-    y_quantiles = quantile_model(sample_batch["pvnet_inputs"])
+    y_quantiles = quantile_model(sample_batch)
 
     # Backwards on sum drives sum to zero
     y_quantiles.sum().backward()

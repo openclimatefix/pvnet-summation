@@ -14,12 +14,10 @@ output_network:
   _partial_: True
 output_network_kwargs:
   fc_hidden_features: 128
-  n_res_blocks: 6
+  n_res_blocks: 2
   res_block_layers: 2
   dropout_frac: 0.0
-
-# Foreast and time settings
-forecast_minutes: 480
+predict_difference_from_sum: False
 
 # ----------------------------------------------
 
