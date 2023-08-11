@@ -99,9 +99,9 @@ def train(config: DictConfig) -> Optional[float]:
 
                 for concurrent_sample_dict in tqdm(dataloader):
                     # Run though model and remove
-                    pvnet_out = model.predict_pvnet_batch([concurrent_sample_dict["pvnet_inputs"]])[
-                        0
-                    ]
+                    pvnet_out = model.predict_pvnet_batch(
+                        [concurrent_sample_dict["pvnet_inputs"]]
+                    )[0]
                     del concurrent_sample_dict["pvnet_inputs"]
                     concurrent_sample_dict["pvnet_outputs"] = pvnet_out
 
@@ -175,7 +175,7 @@ def train(config: DictConfig) -> Optional[float]:
         datamodule=datamodule,
         trainer=trainer,
         callbacks=callbacks,
-        logger=logger,
+        loggers=loggers,
     )
 
     # Print path to best checkpoint

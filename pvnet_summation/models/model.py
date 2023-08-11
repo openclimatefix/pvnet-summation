@@ -93,17 +93,12 @@ class Model(BaseModel):
         if self.use_quantile_regression:
             # Shape: batch_size, seq_length * num_quantiles
             out = out.reshape(out.shape[0], self.forecast_len_30, len(self.output_quantiles))
-
+    
+        
         if self.predict_difference_from_sum:
-            # If PVNet model uses quantiles, need to expand to match shape
-            if self.pvnet_model.use_quantile_regression:
-                eff_cap = x["effective_capacity"].unsqueeze(-1)
-            else:
-                eff_cap = x["effective_capacity"]
-
-            gsp_sum = (x["pvnet_outputs"] * eff_cap).sum(dim=1)
-
-            #
+            
+            gsp_sum = self.sum_of_gsps(x)
+            
             if self.use_quantile_regression:
                 gsp_sum = gsp_sum.unsqueeze(-1)
 
