@@ -49,6 +49,9 @@ class BaseModel(PVNetBaseModel):
         """
         pl.LightningModule.__init__(self)
         PVNetModelHubMixin.__init__(self)
+        
+        self.pvnet_model_name = model_name
+        self.pvnet_model_version = model_version
 
         self.pvnet_model = PVNetBaseModel.from_pretrained(
             model_name,
