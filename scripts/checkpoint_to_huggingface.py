@@ -8,6 +8,7 @@ python checkpoint_to_huggingface.py "path/to/model/checkpoints" \
 import glob
 import os
 import tempfile
+from pathlib import Path
 from typing import Optional
 
 import hydra
@@ -15,8 +16,8 @@ import torch
 import typer
 import wandb
 from pyaml_env import parse_config
+
 import pvnet_summation
-from pathlib import Path
 
 
 def push_to_huggingface(
@@ -74,9 +75,9 @@ def push_to_huggingface(
         wandb_model_code=wandb_id,
         push_to_hub=push_to_hub,
         repo_id="openclimatefix/pvnet_v2_summation" if push_to_hub else None,
-        card_template_path = (
+        card_template_path=(
             Path(pvnet_summation.__file__).parent / "models" / "model_card_template.md"
-        )
+        ),
     )
 
     if local_path is None:
