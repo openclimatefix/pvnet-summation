@@ -49,7 +49,7 @@ class BaseModel(PVNetBaseModel):
         """
         pl.LightningModule.__init__(self)
         PVNetModelHubMixin.__init__(self)
-        
+
         self.pvnet_model_name = model_name
         self.pvnet_model_version = model_version
 
@@ -181,19 +181,19 @@ class BaseModel(PVNetBaseModel):
         losses.update(self._calculate_val_losses(y, y_hat))
 
         logged_losses = {f"{k}/val": v for k, v in losses.items()}
-        
+
         # Add losses for sum of GSP predictions
         gsp_sum_losses = {
-                "MSE/val": F.mse_loss(y_sum, y),
-                "MAE/val": F.l1_loss(y_sum, y),
+            "MSE/val": F.mse_loss(y_sum, y),
+            "MAE/val": F.l1_loss(y_sum, y),
         }
         mse_each_step = mse_each_forecast_horizon(output=y_sum, target=y)
         mae_each_step = mae_each_forecast_horizon(output=y_sum, target=y)
         gsp_sum_losses.update({f"MSE_horizon/step_{i:02}": m for i, m in enumerate(mse_each_step)})
         gsp_sum_losses.update({f"MAE_horizon/step_{i:02}": m for i, m in enumerate(mae_each_step)})
-        
-        logged_losses.update({f"{k}_gsp_sum":v for k,v in gsp_sum_losses.items()})
-        
+
+        logged_losses.update({f"{k}_gsp_sum": v for k, v in gsp_sum_losses.items()})
+
         self.log_dict(
             logged_losses,
             on_step=False,
