@@ -5,7 +5,7 @@ accelerator: gpu
 devices: auto
 
 min_epochs: null
-max_epochs: null
+max_epochs: 100
 reload_dataloaders_every_n_epochs: 0
 num_sanity_val_steps: 8
 fast_dev_run: false

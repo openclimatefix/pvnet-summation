@@ -166,6 +166,9 @@ def train(config: DictConfig) -> Optional[float]:
 
     # Train the model completely
     trainer.fit(model=model, datamodule=datamodule)
+    
+    # Validate after end - useful if using stochastic weight averaging
+    trainer.validate(model=model, datamodule=datamodule)
 
     # Make sure everything closed properly
     log.info("Finalizing!")

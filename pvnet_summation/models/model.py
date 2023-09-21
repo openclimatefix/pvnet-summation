@@ -28,7 +28,7 @@ class Model(BaseModel):
         output_quantiles: Optional[list[float]] = None,
         output_network: AbstractLinearNetwork = DefaultFCNet,
         output_network_kwargs: Optional[dict] = None,
-        scale_pvnet_outputs: bool = False,
+        relative_scale_pvnet_outputs: bool = False,
         predict_difference_from_sum: bool = False,
         optimizer: AbstractOptimizer = _default_optimizer,
     ):
@@ -42,7 +42,8 @@ class Model(BaseModel):
             output_network: Pytorch Module class used to combine the 1D features to produce the
                 forecast.
             output_network_kwargs: Dictionary of optional kwargs for the `output_network` module.
-            scale_pvnet_outputs: If true, the PVNet predictions are scaled by the capacities.
+            relative_scale_pvnet_outputs: If true, the PVNet predictions are scaled by a factor
+                which is proportional to their capacities.
             predict_difference_from_sum: Whether to use the sum of GSPs as an estimate for the
                 national sum and train the model to correct this estimate. Otherwise the model tries
                 to learn the national sum from the PVNet outputs directly.
@@ -51,7 +52,7 @@ class Model(BaseModel):
 
         super().__init__(model_name, model_version, optimizer, output_quantiles)
 
-        self.scale_pvnet_outputs = scale_pvnet_outputs
+        self.relative_scale_pvnet_outputs = relative_scale_pvnet_outputs
         self.predict_difference_from_sum = predict_difference_from_sum
 
         if output_network_kwargs is None:
@@ -78,12 +79,15 @@ class Model(BaseModel):
         if "pvnet_outputs" not in x:
             x["pvnet_outputs"] = self.predict_pvnet_batch(x["pvnet_inputs"])
 
-        if self.scale_pvnet_outputs:
+        if self.relative_scale_pvnet_outputs:
             if self.pvnet_model.use_quantile_regression:
                 eff_cap = x["effective_capacity"].unsqueeze(-1)
             else:
                 eff_cap = x["effective_capacity"]
-            x_in = x["pvnet_outputs"] * eff_cap
+            
+            # Multiply by (effective capacity / 100) since the capacities are roughly of magnitude 
+            # of 100 MW. We still want the inputs to the network to be order of magnitude 1.
+            x_in = x["pvnet_outputs"] * (eff_cap/100)
         else:
             x_in = x["pvnet_outputs"]
 
