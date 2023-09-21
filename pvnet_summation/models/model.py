@@ -84,10 +84,10 @@ class Model(BaseModel):
                 eff_cap = x["effective_capacity"].unsqueeze(-1)
             else:
                 eff_cap = x["effective_capacity"]
-            
-            # Multiply by (effective capacity / 100) since the capacities are roughly of magnitude 
+
+            # Multiply by (effective capacity / 100) since the capacities are roughly of magnitude
             # of 100 MW. We still want the inputs to the network to be order of magnitude 1.
-            x_in = x["pvnet_outputs"] * (eff_cap/100)
+            x_in = x["pvnet_outputs"] * (eff_cap / 100)
         else:
             x_in = x["pvnet_outputs"]
 
