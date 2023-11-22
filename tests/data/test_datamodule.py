@@ -10,7 +10,7 @@ def test_init(sample_data):
         gsp_zarr_path=gsp_zarr_dir,
         batch_size=2,
         num_workers=0,
-        prefetch_factor=2,
+        prefetch_factor=None,
     )
 
 
@@ -22,7 +22,7 @@ def test_iter(sample_data):
         gsp_zarr_path=gsp_zarr_dir,
         batch_size=2,
         num_workers=0,
-        prefetch_factor=2,
+        prefetch_factor=None,
     )
 
     batch = next(iter(dm.train_dataloader()))

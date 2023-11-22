@@ -92,7 +92,7 @@ def sample_datamodule(sample_data):
         gsp_zarr_path=gsp_zarr_dir,
         batch_size=2,
         num_workers=0,
-        prefetch_factor=2,
+        prefetch_factor=None,
     )
 
     return dm
@@ -106,9 +106,10 @@ def sample_batch(sample_datamodule):
 
 @pytest.fixture()
 def model_kwargs():
+    # These kwargs define the pvnet model which the summation model uses
     kwargs = dict(
         model_name="openclimatefix/pvnet_v2",
-        model_version="898630f3f8cd4e8506525d813dd61c6d8de86144",
+        model_version="805ca9b2ee3120592b0b70b7c75a454e2b4e4bec",
     )
     return kwargs
 

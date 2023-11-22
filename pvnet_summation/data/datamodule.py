@@ -5,8 +5,9 @@ from lightning.pytorch import LightningDataModule
 from ocf_datapipes.load import OpenGSP
 from ocf_datapipes.training.pvnet import normalize_gsp
 from ocf_datapipes.utils.consts import BatchKey
-from torchdata.dataloader2 import DataLoader2, MultiProcessingReadingService
-from torchdata.datapipes.iter import FileLister, IterDataPipe, Zipper
+from torch.utils.data import DataLoader
+from torch.utils.data.datapipes.datapipe import IterDataPipe
+from torch.utils.data.datapipes.iter import FileLister, Zipper
 
 # https://github.com/pytorch/pytorch/issues/973
 torch.multiprocessing.set_sharing_strategy("file_system")
@@ -127,7 +128,7 @@ class DataModule(LightningDataModule):
         gsp_zarr_path: str,
         batch_size=16,
         num_workers=0,
-        prefetch_factor=2,
+        prefetch_factor=None,
     ):
         """Datamodule for training pvnet_summation.
 
@@ -143,10 +144,19 @@ class DataModule(LightningDataModule):
         self.batch_size = batch_size
         self.batch_dir = batch_dir
 
-        self.readingservice_config = dict(
+        self._common_dataloader_kwargs = dict(
+            shuffle=False,  # shuffled in datapipe step
+            batch_size=None,  # batched in datapipe step
+            sampler=None,
+            batch_sampler=None,
             num_workers=num_workers,
-            multiprocessing_context="spawn",
-            worker_prefetch_cnt=prefetch_factor,
+            collate_fn=None,
+            pin_memory=False,
+            drop_last=False,
+            timeout=0,
+            worker_init_fn=None,
+            prefetch_factor=prefetch_factor,
+            persistent_workers=False,
         )
 
     def _get_premade_batches_datapipe(self, subdir, shuffle=False, add_filename=False):
@@ -218,17 +228,14 @@ class DataModule(LightningDataModule):
         datapipe = self._get_premade_batches_datapipe(
             "train", shuffle=shuffle, add_filename=add_filename
         )
-
-        rs = MultiProcessingReadingService(**self.readingservice_config)
-        return DataLoader2(datapipe, reading_service=rs)
+        return DataLoader(datapipe, **self._common_dataloader_kwargs)
 
     def val_dataloader(self, shuffle=False, add_filename=False):
         """Construct val dataloader"""
         datapipe = self._get_premade_batches_datapipe(
             "val", shuffle=shuffle, add_filename=add_filename
         )
-        rs = MultiProcessingReadingService(**self.readingservice_config)
-        return DataLoader2(datapipe, reading_service=rs)
+        return DataLoader(datapipe, **self._common_dataloader_kwargs)
 
     def test_dataloader(self):
         """Construct test dataloader"""
@@ -243,7 +250,7 @@ class PVNetPresavedDataModule(LightningDataModule):
         batch_dir: str,
         batch_size=16,
         num_workers=0,
-        prefetch_factor=2,
+        prefetch_factor=None,
     ):
         """Datamodule for loading pre-saved PVNet predictions to train pvnet_summation.
 
@@ -257,10 +264,19 @@ class PVNetPresavedDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.batch_dir = batch_dir
 
-        self.readingservice_config = dict(
+        self._common_dataloader_kwargs = dict(
+            shuffle=False,  # shuffled in datapipe step
+            batch_size=None,  # batched in datapipe step
+            sampler=None,
+            batch_sampler=None,
             num_workers=num_workers,
-            multiprocessing_context="spawn",
-            worker_prefetch_cnt=prefetch_factor,
+            collate_fn=None,
+            pin_memory=False,
+            drop_last=False,
+            timeout=0,
+            worker_init_fn=None,
+            prefetch_factor=prefetch_factor,
+            persistent_workers=False,
         )
 
     def _get_premade_batches_datapipe(self, subdir, shuffle=False):
@@ -290,9 +306,7 @@ class PVNetPresavedDataModule(LightningDataModule):
             "train",
             shuffle=shuffle,
         )
-
-        rs = MultiProcessingReadingService(**self.readingservice_config)
-        return DataLoader2(datapipe, reading_service=rs)
+        return DataLoader(datapipe, **self._common_dataloader_kwargs)
 
     def val_dataloader(self, shuffle=False):
         """Construct val dataloader"""
@@ -300,8 +314,7 @@ class PVNetPresavedDataModule(LightningDataModule):
             "val",
             shuffle=shuffle,
         )
-        rs = MultiProcessingReadingService(**self.readingservice_config)
-        return DataLoader2(datapipe, reading_service=rs)
+        return DataLoader(datapipe, **self._common_dataloader_kwargs)
 
     def test_dataloader(self):
         """Construct test dataloader"""
