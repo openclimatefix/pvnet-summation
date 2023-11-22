@@ -92,7 +92,7 @@ def sample_datamodule(sample_data):
         gsp_zarr_path=gsp_zarr_dir,
         batch_size=2,
         num_workers=0,
-        prefetch_factor=2,
+        prefetch_factor=None,
     )
 
     return dm
