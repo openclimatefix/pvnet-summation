@@ -6,7 +6,6 @@ from ocf_datapipes.load import OpenGSP
 from ocf_datapipes.training.pvnet import normalize_gsp
 from ocf_datapipes.utils.consts import BatchKey
 from torch.utils.data import DataLoader
-from torch.utils.data.datapipes._decorator import functional_datapipe
 from torch.utils.data.datapipes.datapipe import IterDataPipe
 from torch.utils.data.datapipes.iter import FileLister, Zipper
 
