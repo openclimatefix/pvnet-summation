@@ -11,7 +11,7 @@ import tempfile
 from pvnet_summation.models.model import Model
 
 
-from ocf_datapipes.utils.consts import BatchKey
+from ocf_datapipes.batch import BatchKey
 from datetime import timedelta
 
 from pvnet_summation.data.datamodule import DataModule
