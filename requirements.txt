@@ -1,6 +1,6 @@
-ocf_datapipes==3.0.0
-pvnet==2.6.0
-ocf_ml_metrics==0.0.10
+ocf_datapipes==3.0.*
+pvnet==2.6.*
+ocf_ml_metrics==0.0.*
 numpy
 pandas
 matplotlib
