@@ -11,9 +11,9 @@ from pvnet.models.base_model import PVNetModelHubMixin
 from pvnet.models.utils import (
     MetricAccumulator,
     PredAccumulator,
+    WeightedLosses,
 )
 from pvnet.optimizers import AbstractOptimizer
-from pvnet.models.utils import WeightedLosses
 
 from pvnet_summation.utils import plot_forecasts
 
