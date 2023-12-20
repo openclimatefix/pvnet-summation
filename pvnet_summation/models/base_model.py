@@ -6,11 +6,6 @@ import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
 import wandb
-from nowcasting_utils.models.loss import WeightedLosses
-from nowcasting_utils.models.metrics import (
-    mae_each_forecast_horizon,
-    mse_each_forecast_horizon,
-)
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
 from pvnet.models.base_model import PVNetModelHubMixin
 from pvnet.models.utils import (
@@ -18,6 +13,7 @@ from pvnet.models.utils import (
     PredAccumulator,
 )
 from pvnet.optimizers import AbstractOptimizer
+from pvnet.models.utils import WeightedLosses
 
 from pvnet_summation.utils import plot_forecasts
 
@@ -187,8 +183,8 @@ class BaseModel(PVNetBaseModel):
             "MSE/val": F.mse_loss(y_sum, y),
             "MAE/val": F.l1_loss(y_sum, y),
         }
-        mse_each_step = mse_each_forecast_horizon(output=y_sum, target=y)
-        mae_each_step = mae_each_forecast_horizon(output=y_sum, target=y)
+        mse_each_step = gsp_sum_losses["MSE/val"]
+        mae_each_step = gsp_sum_losses["MAE/val"]
         gsp_sum_losses.update({f"MSE_horizon/step_{i:02}": m for i, m in enumerate(mse_each_step)})
         gsp_sum_losses.update({f"MAE_horizon/step_{i:02}": m for i, m in enumerate(mae_each_step)})
 
