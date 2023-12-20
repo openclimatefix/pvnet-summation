@@ -1,5 +1,5 @@
 ocf_datapipes==2.2.7
-pvnet>=2.4.0
+pvnet==2.4.1
 ocf_ml_metrics==0.0.10
 numpy
 pandas
