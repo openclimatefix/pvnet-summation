@@ -1,5 +1,5 @@
 from pvnet_summation.data.datamodule import DataModule
-from ocf_datapipes.utils.consts import BatchKey
+from ocf_datapipes.batch import BatchKey
 
 
 def test_init(sample_data):
