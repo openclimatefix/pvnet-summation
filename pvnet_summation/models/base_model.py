@@ -184,8 +184,8 @@ class BaseModel(PVNetBaseModel):
             "MAE/val": F.l1_loss(y_sum, y),
         }
 
-        mse_each_step = torch.mean((output - target) ** 2, dim=0)
-        mae_each_step = torch.mean(torch.abs(output - target), dim=0)
+        mse_each_step = torch.mean((y_sum - y) ** 2, dim=0)
+        mae_each_step = torch.mean(torch.abs(y_sum - y), dim=0)
         gsp_sum_losses.update({f"MSE_horizon/step_{i:02}": m for i, m in enumerate(mse_each_step)})
         gsp_sum_losses.update({f"MAE_horizon/step_{i:02}": m for i, m in enumerate(mae_each_step)})
 
