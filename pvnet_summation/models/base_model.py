@@ -74,19 +74,22 @@ class BaseModel(PVNetBaseModel):
         self._accumulated_y_hat = PredAccumulator()
         self._accumulated_y_sum = PredAccumulator()
         self._accumulated_times = PredAccumulator()
-        
+
         self.use_quantile_regression = self.output_quantiles is not None
-        
+
         if self.use_quantile_regression:
             self.num_output_features = self.forecast_len_30 * len(self.output_quantiles)
         else:
             self.num_output_features = self.forecast_len_30
-        
-        
+
         if self.pvnet_model.use_quantile_regression:
-            self.pvnet_output_shape= (317, self.pvnet_model.forecast_len, len(self.pvnet_model.output_quantiles))
+            self.pvnet_output_shape = (
+                317,
+                self.pvnet_model.forecast_len,
+                len(self.pvnet_model.output_quantiles),
+            )
         else:
-            self.pvnet_output_shape= (317, self.pvnet_model.forecast_len)
+            self.pvnet_output_shape = (317, self.pvnet_model.forecast_len)
 
     def predict_pvnet_batch(self, batch):
         """Use PVNet model to create predictions for batch"""
