@@ -19,3 +19,4 @@ tqdm
 omegaconf
 hydra-core
 python-dotenv
+huggingface_hub==2.0.*
