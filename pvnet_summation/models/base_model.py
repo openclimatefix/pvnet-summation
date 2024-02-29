@@ -75,6 +75,22 @@ class BaseModel(PVNetBaseModel):
         self._accumulated_y_sum = PredAccumulator()
         self._accumulated_times = PredAccumulator()
 
+        self.use_quantile_regression = self.output_quantiles is not None
+
+        if self.use_quantile_regression:
+            self.num_output_features = self.forecast_len_30 * len(self.output_quantiles)
+        else:
+            self.num_output_features = self.forecast_len_30
+
+        if self.pvnet_model.use_quantile_regression:
+            self.pvnet_output_shape = (
+                317,
+                self.pvnet_model.forecast_len,
+                len(self.pvnet_model.output_quantiles),
+            )
+        else:
+            self.pvnet_output_shape = (317, self.pvnet_model.forecast_len)
+
     def predict_pvnet_batch(self, batch):
         """Use PVNet model to create predictions for batch"""
         gsp_batches = []
@@ -91,14 +107,6 @@ class BaseModel(PVNetBaseModel):
             y_hat = x["pvnet_outputs"]
 
         return (y_hat * x["effective_capacity"]).sum(dim=1)
-
-    @property
-    def pvnet_output_shape(self):
-        """Return the expected shape of the PVNet outputs"""
-        if self.pvnet_model.use_quantile_regression:
-            return (317, self.pvnet_model.forecast_len_30, len(self.pvnet_model.output_quantiles))
-        else:
-            return (317, self.pvnet_model.forecast_len_30)
 
     def _training_accumulate_log(self, batch_idx, losses, y_hat, y, y_sum, times):
         """Internal function to accumulate training batches and log results.

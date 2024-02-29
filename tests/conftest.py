@@ -138,7 +138,7 @@ def model_kwargs():
     # These kwargs define the pvnet model which the summation model uses
     kwargs = dict(
         model_name="openclimatefix/pvnet_v2",
-        model_version="22e577100d55787eb2547d701275b9bb48f7bfa0",
+        model_version="4203e12e719efd93da641c43d2e38527648f4915",
     )
     return kwargs
 
