@@ -108,14 +108,6 @@ class BaseModel(PVNetBaseModel):
 
         return (y_hat * x["effective_capacity"]).sum(dim=1)
 
-    @property
-    def _pvnet_output_shape(self):
-        """Return the expected shape of the PVNet outputs"""
-        if self.pvnet_model.use_quantile_regression:
-            return (317, self.pvnet_model.forecast_len, len(self.pvnet_model.output_quantiles))
-        else:
-            return (317, self.pvnet_model.forecast_len)
-
     def _training_accumulate_log(self, batch_idx, losses, y_hat, y, y_sum, times):
         """Internal function to accumulate training batches and log results.
 
