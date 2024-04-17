@@ -65,22 +65,23 @@ class BaseModel(PVNetBaseModel):
         self.output_quantiles = output_quantiles
 
         # Number of timestemps for 30 minutely data
-        self.forecast_len_30 = self.forecast_minutes // 30
+        self.forecast_len = self.forecast_minutes // 30
 
-        self.weighted_losses = WeightedLosses(forecast_length=self.forecast_len_30)
+        self.weighted_losses = WeightedLosses(forecast_length=self.forecast_len)
 
         self._accumulated_metrics = MetricAccumulator()
         self._accumulated_y = PredAccumulator()
         self._accumulated_y_hat = PredAccumulator()
         self._accumulated_y_sum = PredAccumulator()
         self._accumulated_times = PredAccumulator()
+        self._horizon_maes = MetricAccumulator()
 
         self.use_quantile_regression = self.output_quantiles is not None
 
         if self.use_quantile_regression:
-            self.num_output_features = self.forecast_len_30 * len(self.output_quantiles)
+            self.num_output_features = self.forecast_len * len(self.output_quantiles)
         else:
-            self.num_output_features = self.forecast_len_30
+            self.num_output_features = self.forecast_len
 
         if self.pvnet_model.use_quantile_regression:
             self.pvnet_output_shape = (
