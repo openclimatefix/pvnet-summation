@@ -10,7 +10,7 @@ install_requires = (this_directory / "requirements.txt").read_text().splitlines(
 
 setup(
     name="PVNet_summation",
-    version="0.1.3",
+    version="0.1.4",
     license="MIT",
     description="Package for training summation model for PVNet",
     author="James Fulton",
