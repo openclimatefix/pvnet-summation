@@ -96,7 +96,7 @@ class Model(BaseModel):
 
         if self.use_quantile_regression:
             # Shape: batch_size, seq_length * num_quantiles
-            out = out.reshape(out.shape[0], self.forecast_len_30, len(self.output_quantiles))
+            out = out.reshape(out.shape[0], self.forecast_len, len(self.output_quantiles))
 
         if self.predict_difference_from_sum:
             gsp_sum = self.sum_of_gsps(x)
