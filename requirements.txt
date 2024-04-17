@@ -1,5 +1,5 @@
-ocf_datapipes==3.2.*
-pvnet==3.0.*
+ocf_datapipes>=3.2
+pvnet>=3.0
 numpy
 pandas
 matplotlib
