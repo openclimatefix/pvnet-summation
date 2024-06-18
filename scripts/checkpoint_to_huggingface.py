@@ -56,9 +56,9 @@ def push_to_huggingface(
         # Only one epoch (best) saved per model
         files = glob.glob(f"{checkpoint_dir_path}/epoch*.ckpt")
         assert len(files) == 1
-        checkpoint = torch.load(files[0])
+        checkpoint = torch.load(files[0], map_location="cpu")
     else:
-        checkpoint = torch.load(f"{checkpoint_dir_path}/last.ckpt")
+        checkpoint = torch.load(f"{checkpoint_dir_path}/last.ckpt", map_location="cpu")
 
     model.load_state_dict(state_dict=checkpoint["state_dict"])
 
@@ -72,7 +72,8 @@ def push_to_huggingface(
     model.save_pretrained(
         model_output_dir,
         config=model_config,
-        wandb_model_code=wandb_id,
+        data_config=None,
+        wandb_ids=wandb_id,
         push_to_hub=push_to_hub,
         repo_id="openclimatefix/pvnet_v2_summation" if push_to_hub else None,
         card_template_path=(

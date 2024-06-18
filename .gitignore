@@ -1,3 +1,16 @@
+# Custom
+config_tree.txt
+configs/
+lightning_logs/
+logs/
+output/
+checkpoints*
+csv/
+notebooks/
+*.html
+*.csv
+latest_logged_train_batch.png
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -5,7 +18,7 @@ __pycache__/
 
 # C extensions
 *.so
-.idea/
+
 # Distribution / packaging
 .Python
 build/

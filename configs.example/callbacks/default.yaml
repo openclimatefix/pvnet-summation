@@ -16,12 +16,12 @@ model_checkpoint:
   every_n_epochs: 1
   verbose: False
   filename: "epoch={epoch}-step={step}"
-  dirpath: "checkpoints/pvnet_summation/${model_name}" #${..model_name}
+  dirpath: "PLACEHOLDER/${model_name}"
   auto_insert_metric_name: False
   save_on_train_epoch_end: False
 
-stochastic_weight_averaging:
-  _target_: pvnet_summation.callbacks.StochasticWeightAveraging
-  swa_lrs: 0.0000001
-  swa_epoch_start: 0.8
-  annealing_epochs: 5
+#stochastic_weight_averaging:
+#  _target_: pvnet_summation.callbacks.StochasticWeightAveraging
+#  swa_lrs: 0.0000001
+#  swa_epoch_start: 0.8
+#  annealing_epochs: 5
