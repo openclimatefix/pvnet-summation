@@ -91,7 +91,7 @@ class BaseModel(PVNetBaseModel):
             )
         else:
             self.pvnet_output_shape = (317, self.pvnet_model.forecast_len)
-        
+
         self.use_weighted_loss = False
 
     def predict_pvnet_batch(self, batch):
@@ -186,7 +186,7 @@ class BaseModel(PVNetBaseModel):
 
         losses = self._calculate_common_losses(y, y_hat)
         losses.update(self._calculate_val_losses(y, y_hat))
-        
+
         # Store these to make horizon accuracy plot
         self._horizon_maes.append(
             {i: losses[f"MAE_horizon/step_{i:03}"].cpu().numpy() for i in range(self.forecast_len)}
