@@ -1,0 +1,31 @@
+_target_: pvnet_summation.models.model.Model
+
+output_quantiles: null
+
+model_name: "openclimatefix/pvnet_v2"
+model_version: "898630f3f8cd4e8506525d813dd61c6d8de86144"
+
+#--------------------------------------------
+# Tabular network settings
+#--------------------------------------------
+
+output_network:
+  _target_: pvnet.models.multimodal.linear_networks.networks.ResFCNet2
+  _partial_: True
+output_network_kwargs:
+  fc_hidden_features: 128
+  n_res_blocks: 2
+  res_block_layers: 2
+  dropout_frac: 0.0
+predict_difference_from_sum: False
+
+# ----------------------------------------------
+
+optimizer:
+  _target_: pvnet.optimizers.AdamWReduceLROnPlateau
+  lr: 0.0001
+  weight_decay: 0.25
+  amsgrad: True
+  patience: 20
+  factor: 0.1
+  threshold: 0.00

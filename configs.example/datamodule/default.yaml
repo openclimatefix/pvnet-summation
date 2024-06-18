@@ -1,0 +1,6 @@
+_target_: pvnet_summation.data.datamodule.DataModule
+batch_dir: "PLACEHOLDER"
+gsp_zarr_path: "PLACEHOLDER"
+batch_size: 32
+num_workers: 20
+prefetch_factor: 2
