@@ -59,7 +59,7 @@ class Model(BaseModel):
             output_network_kwargs = dict()
 
         self.model = output_network(
-            in_features=np.product(self.pvnet_output_shape),
+            in_features=np.prod(self.pvnet_output_shape),
             out_features=self.num_output_features,
             **output_network_kwargs,
         )
