@@ -7,7 +7,6 @@ import pvnet
 import torch
 import torch.nn.functional as F
 from pvnet.models.multimodal.linear_networks.basic_blocks import AbstractLinearNetwork
-from pvnet.models.multimodal.linear_networks.networks import DefaultFCNet
 from pvnet.optimizers import AbstractOptimizer
 from torch import nn
 
@@ -16,7 +15,7 @@ from pvnet_summation.models.base_model import BaseModel
 
 class FlatModel(BaseModel):
     """Neural network which combines GSP predictions from PVNet naively
-    
+
     This model flattens all the features into a 1D vector before feeding them into the sub network
     """
 
@@ -53,12 +52,12 @@ class FlatModel(BaseModel):
 
         self.relative_scale_pvnet_outputs = relative_scale_pvnet_outputs
         self.predict_difference_from_sum = predict_difference_from_sum
-        
+
         self.model = output_network(
             in_features=np.prod(self.pvnet_output_shape),
             out_features=self.num_output_features,
         )
-        
+
         # Add linear layer if predicting difference from sum
         # This allows difference to be positive or negative
         if predict_difference_from_sum:
