@@ -8,8 +8,8 @@ import torch
 import math
 import glob
 import tempfile
-from pvnet_summation.models.model import Model
-
+import hydra
+from pvnet_summation.models.flat_model import FlatModel
 
 from ocf_datapipes.batch import BatchKey
 from datetime import timedelta
@@ -134,22 +134,31 @@ def sample_batch(sample_datamodule):
 
 
 @pytest.fixture()
-def model_kwargs():
-    # These kwargs define the pvnet model which the summation model uses
+def flat_model_kwargs():
     kwargs = dict(
+        # These kwargs define the pvnet model which the summation model uses
         model_name="openclimatefix/pvnet_v2",
         model_version="4203e12e719efd93da641c43d2e38527648f4915",
+        # These kwargs define the structure of the summation model
+        output_network=dict(
+            _target_="pvnet.models.multimodal.linear_networks.networks.ResFCNet2",
+            _partial_=True,
+            fc_hidden_features=128,
+            n_res_blocks=2,
+            res_block_layers=2,
+            dropout_frac=0.0,
+        ),
     )
-    return kwargs
+    return hydra.utils.instantiate(kwargs)
 
 
 @pytest.fixture()
-def model(model_kwargs):
-    model = Model(**model_kwargs)
+def model(flat_model_kwargs):
+    model = FlatModel(**flat_model_kwargs)
     return model
 
 
 @pytest.fixture()
-def quantile_model(model_kwargs):
-    model = Model(output_quantiles=[0.1, 0.5, 0.9], **model_kwargs)
+def quantile_model(flat_model_kwargs):
+    model = FlatModel(output_quantiles=[0.1, 0.5, 0.9], **flat_model_kwargs)
     return model

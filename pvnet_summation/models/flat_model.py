@@ -7,41 +7,39 @@ import pvnet
 import torch
 import torch.nn.functional as F
 from pvnet.models.multimodal.linear_networks.basic_blocks import AbstractLinearNetwork
-from pvnet.models.multimodal.linear_networks.networks import DefaultFCNet
 from pvnet.optimizers import AbstractOptimizer
 from torch import nn
 
 from pvnet_summation.models.base_model import BaseModel
 
-_default_optimizer = pvnet.optimizers.Adam()
 
+class FlatModel(BaseModel):
+    """Neural network which combines GSP predictions from PVNet naively
 
-class Model(BaseModel):
-    """Neural network which combines GSP predictions from PVNet"""
+    This model flattens all the features into a 1D vector before feeding them into the sub network
+    """
 
-    name = "pvnet_summation_model"
+    name = "FlatModel"
 
     def __init__(
         self,
+        output_network: AbstractLinearNetwork,
         model_name: str,
-        model_version: Optional[str],
+        model_version: Optional[str] = None,
         output_quantiles: Optional[list[float]] = None,
-        output_network: AbstractLinearNetwork = DefaultFCNet,
-        output_network_kwargs: Optional[dict] = None,
         relative_scale_pvnet_outputs: bool = False,
         predict_difference_from_sum: bool = False,
-        optimizer: AbstractOptimizer = _default_optimizer,
+        optimizer: AbstractOptimizer = pvnet.optimizers.Adam(),
     ):
-        """Neural network which combines GSP predictions from PVNet
+        """Neural network which combines GSP predictions from PVNet naively
 
         Args:
             model_name: Model path either locally or on huggingface.
             model_version: Model version if using huggingface. Set to None if using local.
             output_quantiles: A list of float (0.0, 1.0) quantiles to predict values for. If set to
                 None the output is a single value.
-            output_network: Pytorch Module class used to combine the 1D features to produce the
-                forecast.
-            output_network_kwargs: Dictionary of optional kwargs for the `output_network` module.
+            output_network: A partially instantiated pytorch Module class used to combine the 1D
+                features to produce the forecast.
             relative_scale_pvnet_outputs: If true, the PVNet predictions are scaled by a factor
                 which is proportional to their capacities.
             predict_difference_from_sum: Whether to use the sum of GSPs as an estimate for the
@@ -55,13 +53,9 @@ class Model(BaseModel):
         self.relative_scale_pvnet_outputs = relative_scale_pvnet_outputs
         self.predict_difference_from_sum = predict_difference_from_sum
 
-        if output_network_kwargs is None:
-            output_network_kwargs = dict()
-
         self.model = output_network(
             in_features=np.prod(self.pvnet_output_shape),
             out_features=self.num_output_features,
-            **output_network_kwargs,
         )
 
         # Add linear layer if predicting difference from sum
@@ -85,9 +79,10 @@ class Model(BaseModel):
             else:
                 eff_cap = x["effective_capacity"]
 
-            # Multiply by (effective capacity / 100) since the capacities are roughly of magnitude
-            # of 100 MW. We still want the inputs to the network to be order of magnitude 1.
-            x_in = x["pvnet_outputs"] * (eff_cap / 100)
+            # The effective_capacit[ies] are relative fractions of the national capacity. They sum
+            # to 1 and they are quite small values. For the largest GSP the capacity is around 0.03.
+            # Therefore we apply this scaling to make the input values a more sensible size
+            x_in = x["pvnet_outputs"] * eff_cap * 100
         else:
             x_in = x["pvnet_outputs"]
 
