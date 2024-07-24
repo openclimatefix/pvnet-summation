@@ -28,6 +28,7 @@ dependencies = [
     "hydra-core",
     "python-dotenv",
     "huggingface-hub==0.20.*",
+    "geopandas==0.14.4",
 ]
 
 [tool.setuptools.dynamic]
