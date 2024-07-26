@@ -50,7 +50,7 @@ class BaseModel(PVNetBaseModel):
         self.pvnet_model_version = model_version
 
         self.pvnet_model = PVNetBaseModel.from_pretrained(
-            model_name,
+            model_id=model_name,
             revision=model_version,
         )
         self.pvnet_model.requires_grad_(False)

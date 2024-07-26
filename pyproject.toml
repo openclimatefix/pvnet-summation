@@ -27,7 +27,7 @@ dependencies = [
     "omegaconf",
     "hydra-core",
     "python-dotenv",
-    "huggingface-hub==0.20.*",
+    "huggingface-hub",
     "geopandas==0.14.4",
 ]
 
