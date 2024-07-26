@@ -137,8 +137,8 @@ def sample_batch(sample_datamodule):
 def flat_model_kwargs():
     kwargs = dict(
         # These kwargs define the pvnet model which the summation model uses
-        model_name="openclimatefix/pvnet_uk_region",
-        model_version="aa73cdafd1db8df3c8b7f5ecfdb160989e7639ac",
+        model_name="openclimatefix/pvnet_v2",
+        model_version="4203e12e719efd93da641c43d2e38527648f4915",
         # These kwargs define the structure of the summation model
         output_network=dict(
             _target_="pvnet.models.multimodal.linear_networks.networks.ResFCNet2",
