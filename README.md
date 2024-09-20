@@ -1,4 +1,6 @@
 # PVNet summation
+[![ease of contribution: hard](https://img.shields.io/badge/ease%20of%20contribution:%20hard-bb2629)](https://github.com/openclimatefix/ocf-meta-repo?tab=readme-ov-file#overview-of-ocfs-nowcasting-repositories)
+
 This project is used for training a model to sum the GSP predictions of [PVNet](https://github.com/openclimatefix/PVNet) into a national estimate.
 
 Using this model to sum the GSP predictions rather than doing a simple sum increases the accuracy of the national predictions and can be configured to produce estimates of the uncertainty range of the national estimate. See the [PVNet](https://github.com/openclimatefix/PVNet) repo for more details and our paper.
