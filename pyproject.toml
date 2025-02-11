@@ -7,7 +7,8 @@ license={file="LICENCE"}
 
 dependencies = [
     "ocf_datapipes>=3.3.33",
-    "pvnet>=3.0.45",
+    "ocf_data_sampler>=0.1.6",
+    "pvnet>=3.0.64",
     "numpy",
     "pandas",
     "matplotlib",

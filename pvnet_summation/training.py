@@ -17,12 +17,15 @@ from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 from pvnet import utils
 from tqdm import tqdm
+from ocf_datapipes.batch import copy_batch_to_device
 
 from pvnet_summation.data.datamodule import PVNetPresavedDataModule
 
 log = utils.get_logger(__name__)
 
 torch.set_default_dtype(torch.float32)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def resolve_monitor_loss(output_quantiles):
@@ -66,6 +69,7 @@ def train(config: DictConfig) -> Optional[float]:
     # Init lightning model
     log.info(f"Instantiating model <{config.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(config.model)
+    model = model.to(device)
 
     # Presave batches
     if config.get("presave_pvnet_outputs", False):
@@ -99,9 +103,8 @@ def train(config: DictConfig) -> Optional[float]:
 
                 for concurrent_sample_dict in tqdm(dataloader):
                     # Run though model and remove
-                    pvnet_out = model.predict_pvnet_batch([concurrent_sample_dict["pvnet_inputs"]])[
-                        0
-                    ]
+                    x = [copy_batch_to_device(concurrent_sample_dict["pvnet_inputs"], device)]
+                    pvnet_out = model.predict_pvnet_batch(x)[0].cpu()
                     del concurrent_sample_dict["pvnet_inputs"]
                     concurrent_sample_dict["pvnet_outputs"] = pvnet_out
 
