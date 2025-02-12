@@ -26,12 +26,14 @@ This model class sums the output of the PVNet model's GSP level predictions to m
 
 <!-- This should link to a Data Card, perhaps with a short stub of information on what the training data is all about as well as documentation related to data pre-processing or additional filtering. -->
 
-The model is trained on data from 2017-2020 and validated on data from 2021. See experimental notes in the [the google doc](https://docs.google.com/document/d/1fbkfkBzp16WbnCg7RDuRDvgzInA6XQu3xh4NCjV-WDA/edit?usp=sharing) for more details.
+The model is trained on the output predictions of our PVNet model which gives GSP (i.e. UK regional) level predictions
+of solar power across Great Britain. This model is trained to take those predictions and use them to estimate
+the national total with uncertainty estimates.
 
 
 ### Preprocessing
 
-Data is prepared with the `ocf_datapipes.training.pvnet` datapipe [3].
+The input data is prepared with the `ocf_data_sampler` [3].
 
 
 ## Results
@@ -51,4 +53,4 @@ Trained on a single NVIDIA Tesla T4
 
 - [1] https://github.com/openclimatefix/PVNet_summation
 - [2] https://github.com/openclimatefix/PVNet
-- [3] https://github.com/openclimatefix/ocf_datapipes
+- [3] https://github.com/openclimatefix/ocf-data-sampler

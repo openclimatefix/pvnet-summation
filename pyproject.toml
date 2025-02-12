@@ -8,7 +8,7 @@ license={file="LICENCE"}
 dependencies = [
     "ocf_datapipes>=3.3.33",
     "ocf_data_sampler>=0.1.6",
-    "pvnet>=3.0.64",
+    "git@github.com:openclimatefix/PVNet.git@dev-data-sampler",
     "numpy",
     "pandas",
     "matplotlib",
