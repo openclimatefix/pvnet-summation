@@ -93,30 +93,35 @@ class SavedSampleDataModule(LightningDataModule):
         super().__init__()
         self.gsp_zarr_path = gsp_zarr_path
         self.sample_dir = sample_dir
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.prefetch_factor = prefetch_factor
 
-        self._common_dataloader_kwargs = dict(
-            batch_size=batch_size,
+    @property
+    def _dataloader_kwargs(self):
+        return dict(
+            batch_size=self.batch_size,
             sampler=None,
             batch_sampler=None,
-            num_workers=num_workers,
-            collate_fn=collate_summation_samples,
+            num_workers=self.num_workers,
+            collate_fn=None if self.batch_size is None else collate_summation_samples,
             pin_memory=False,
             drop_last=False,
             timeout=0,
             worker_init_fn=None,
-            prefetch_factor=prefetch_factor,
-            persistent_workers=False,
+            prefetch_factor=self.prefetch_factor,
+            persistent_workers=self.num_workers > 0,
         )
 
     def train_dataloader(self, shuffle=True):
         """Construct train dataloader"""
         dataset = SavedSampleDataset(f"{self.sample_dir}/train", self.gsp_zarr_path)
-        return DataLoader(dataset, shuffle=shuffle, **self._common_dataloader_kwargs)
+        return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
     def val_dataloader(self, shuffle=False):
         """Construct val dataloader"""
         dataset = SavedSampleDataset(f"{self.sample_dir}/val", self.gsp_zarr_path)
-        return DataLoader(dataset, shuffle=shuffle, **self._common_dataloader_kwargs)
+        return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
 
 class SavedPredictionDataset(Dataset):
@@ -144,27 +149,32 @@ class SavedPredictionDataModule(LightningDataModule):
         """
         super().__init__()
         self.sample_dir = sample_dir
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.prefetch_factor = prefetch_factor
 
-        self._common_dataloader_kwargs = dict(
-            batch_size=batch_size,
+    @property
+    def _dataloader_kwargs(self):
+        return dict(
+            batch_size=self.batch_size,
             sampler=None,
             batch_sampler=None,
-            num_workers=num_workers,
-            collate_fn=default_collate,
+            num_workers=self.num_workers,
+            collate_fn=None if self.batch_size is None else default_collate,
             pin_memory=False,
             drop_last=False,
             timeout=0,
             worker_init_fn=None,
-            prefetch_factor=prefetch_factor,
-            persistent_workers=num_workers > 0,
+            prefetch_factor=self.prefetch_factor,
+            persistent_workers=self.num_workers > 0,
         )
 
     def train_dataloader(self, shuffle=True):
         """Construct train dataloader"""
         dataset = SavedPredictionDataset(f"{self.sample_dir}/train")
-        return DataLoader(dataset, shuffle=shuffle, **self._common_dataloader_kwargs)
+        return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
     def val_dataloader(self, shuffle=False):
         """Construct val dataloader"""
         dataset = SavedPredictionDataset(f"{self.sample_dir}/val")
-        return DataLoader(dataset, shuffle=shuffle, **self._common_dataloader_kwargs)
+        return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)

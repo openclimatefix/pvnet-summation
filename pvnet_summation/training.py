@@ -19,7 +19,7 @@ from pvnet import utils
 from tqdm import tqdm
 from ocf_datapipes.batch import copy_batch_to_device
 
-from pvnet_summation.data.datamodule import PVNetPresavedDataModule
+from pvnet_summation.data.datamodule import SavedPredictionDataModule
 
 log = utils.get_logger(__name__)
 
@@ -74,7 +74,7 @@ def train(config: DictConfig) -> Optional[float]:
     # Presave batches
     if config.get("presave_pvnet_outputs", False):
         save_dir = (
-            f"{config.datamodule.batch_dir}/"
+            f"{config.datamodule.sample_dir}/"
             f"{config.model.model_name}/"
             f"{config.model.model_version}"
         )
@@ -99,23 +99,20 @@ def train(config: DictConfig) -> Optional[float]:
                 (datamodule.val_dataloader, "val"),
             ]:
                 log.info(f"Saving {split} outputs")
-                dataloader = dataloader_func(shuffle=False, add_filename=True)
+                dataloader = dataloader_func(shuffle=False)
 
-                for concurrent_sample_dict in tqdm(dataloader):
-                    # Run though model and remove
-                    x = [copy_batch_to_device(concurrent_sample_dict["pvnet_inputs"], device)]
-                    pvnet_out = model.predict_pvnet_batch(x)[0].cpu()
-                    del concurrent_sample_dict["pvnet_inputs"]
-                    concurrent_sample_dict["pvnet_outputs"] = pvnet_out
-
+                for i, conc_sample_dict in tqdm(enumerate(dataloader)):
+                    # Run PVNet inputs though model and remove from sample
+                    x = [copy_batch_to_device(conc_sample_dict["pvnet_inputs"], device)]
+                    conc_sample_dict["pvnet_outputs"] = model.predict_pvnet_batch(x)[0].cpu()
+                    del conc_sample_dict["pvnet_inputs"]
+                    
                     # Save pvnet prediction sample
-                    filepath = concurrent_sample_dict.pop("filepath")
-                    sample_rel_path = filepath.removeprefix(config.datamodule.batch_dir)
-                    sample_path = f"{save_dir}{sample_rel_path}"
-                    torch.save(concurrent_sample_dict, sample_path)
+                    sample_path = f"{save_dir}/{split}/{i:06}.pt"
+                    torch.save(conc_sample_dict, sample_path)
 
-        datamodule = PVNetPresavedDataModule(
-            batch_dir=save_dir,
+        datamodule = SavedPredictionDataModule(
+            sample_dir=save_dir,
             batch_size=config.datamodule.batch_size,
             num_workers=config.datamodule.num_workers,
             prefetch_factor=config.datamodule.prefetch_factor,
