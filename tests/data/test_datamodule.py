@@ -27,7 +27,7 @@ def test_saved_sample_datamodule(presaved_samples_dir, uk_gsp_zarr_path, num_sam
     )
 
     dataloader = datamodule.train_dataloader()
-    assert len(dataloader)==num_samples/batch_size
+    assert len(dataloader) == num_samples / batch_size
 
     batch = next(iter(dataloader))
     assert isinstance(batch, dict)
@@ -50,7 +50,7 @@ def test_saved_prediction_datamodule(presaved_predictions_dir, num_samples):
         prefetch_factor=None,
     )
     dataloader = datamodule.train_dataloader()
-    assert len(dataloader)==num_samples/batch_size
+    assert len(dataloader) == num_samples / batch_size
 
     batch = next(iter(dataloader))
     assert isinstance(batch, dict)
