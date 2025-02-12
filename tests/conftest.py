@@ -1,30 +1,32 @@
+import pytest
+
 import os
 import shutil
-from pyaml_env import parse_config
-from pvnet_summation.models.flat_model import FlatModel
-
+import yaml
 import hydra
-import pytest
-import pandas as pd
-import numpy as np
-import xarray as xr
-import torch
-import dask
 
+import numpy as np
+import pandas as pd
+import xarray as xr
+import dask
+import torch
 from torch.utils.data import DataLoader
+
 from ocf_data_sampler.config import load_yaml_configuration, save_yaml_configuration
 from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
+
+from pvnet_summation.models.flat_model import FlatModel
 from pvnet_summation.data.datamodule import SavedSampleDataset, SavedSampleDataModule
+
+
+@pytest.fixture(scope="session", autouse=True)
+def test_root_directory(request):
+    return f"{request.config.rootpath}/tests"
 
 
 @pytest.fixture(scope="session")
 def num_samples():
     return 100
-
-
-@pytest.fixture(scope="session")
-def top_test_directory():
-    return os.path.dirname(os.path.realpath(__file__))
 
 
 @pytest.fixture(scope="session")
@@ -92,11 +94,10 @@ def sat_zarr_path(session_tmp_path):
         attrs=dict(area=area_string),
     ).to_dataset(name="data")
 
-    # Save temporarily as a zarr
-    zarr_path = session_tmp_path / "test_sat.zarr"
+    zarr_path = f"{session_tmp_path}/test_sat.zarr"
     ds.to_zarr(zarr_path)
 
-    yield zarr_path
+    return zarr_path
 
 
 @pytest.fixture(scope="session")
@@ -133,9 +134,9 @@ def nwp_ukv_zarr_path(session_tmp_path):
         }
     )
 
-    zarr_path = session_tmp_path / "ukv_nwp.zarr"
+    zarr_path = f"{session_tmp_path}/ukv_nwp.zarr"
     ds.to_zarr(zarr_path)
-    yield zarr_path
+    return zarr_path
 
 
 @pytest.fixture(scope="session")
@@ -164,16 +165,16 @@ def uk_gsp_zarr_path(session_tmp_path):
         {"capacity_mwp": da_cap, "installedcapacity_mwp": da_cap, "generation_mw": da_gen}
     )
 
-    zarr_path = session_tmp_path / "uk_gsp.zarr"
+    zarr_path = f"{session_tmp_path}/uk_gsp.zarr"
     ds.to_zarr(zarr_path)
-    yield zarr_path
+    return zarr_path
 
 
 @pytest.fixture(scope="session")
 def pvnet_config_filename(
-    session_tmp_path, nwp_ukv_zarr_path, uk_gsp_zarr_path, sat_zarr_path, top_test_directory
+    session_tmp_path, nwp_ukv_zarr_path, uk_gsp_zarr_path, sat_zarr_path, test_root_directory
 ):
-    config = load_yaml_configuration(f"{top_test_directory}/test_data/data_config.yaml")
+    config = load_yaml_configuration(f"{test_root_directory}/test_data/data_config.yaml")
     config.input_data.nwp["ukv"].zarr_path = nwp_ukv_zarr_path
     config.input_data.satellite.zarr_path = sat_zarr_path
     config.input_data.gsp.zarr_path = uk_gsp_zarr_path
@@ -202,14 +203,15 @@ def presaved_samples_dir(session_tmp_path, pvnet_config_filename, num_samples):
     # Use the same samples for validation
     os.system(f"ln -s {samples_dir}/train {samples_dir}/val")
 
-    yield samples_dir
+    return samples_dir
 
 
 @pytest.fixture(scope="session")
-def saved_pvnet_model_path(top_test_directory, session_tmp_path):
+def saved_pvnet_model_path(session_tmp_path, test_root_directory):
     # Create the PVNet model
-    model_config_path = f"{top_test_directory}/test_data/pvnet_model_config.yaml"
-    model_config = parse_config(model_config_path)
+    model_config_path = f"{test_root_directory}/test_data/pvnet_model_config.yaml"
+    with open(model_config_path, 'r') as stream:
+        model_config = yaml.safe_load(stream)
 
     model = hydra.utils.instantiate(model_config)
 
@@ -219,14 +221,14 @@ def saved_pvnet_model_path(top_test_directory, session_tmp_path):
     model.save_pretrained(
         model_output_dir,
         config=model_config,
-        data_config=f"{top_test_directory}/test_data/data_config.yaml",
+        data_config=f"{test_root_directory}/test_data/data_config.yaml",
         wandb_repo=None,
         wandb_ids="excluded-for-text",
         push_to_hub=False,
         repo_id="openclimatefix/pvnet_uk_region",
     )
 
-    yield model_output_dir
+    return model_output_dir
 
 
 @pytest.fixture(scope="session")
@@ -250,8 +252,7 @@ def flat_model_kwargs(saved_pvnet_model_path):
 
 @pytest.fixture(scope="session")
 def model(flat_model_kwargs):
-    model = FlatModel(**flat_model_kwargs)
-    return model
+    return FlatModel(**flat_model_kwargs)
 
 
 @pytest.fixture(scope="session")
@@ -266,20 +267,21 @@ def presaved_predictions_dir(session_tmp_path, presaved_samples_dir, uk_gsp_zarr
         f"{presaved_preds_dir}/data_configuration.yaml",
     )
 
+    # Make PVNet predictions for all samples and save them
     for split in ["train", "val"]:
         dataset = SavedSampleDataset(
-            sample_dir=f"{presaved_samples_dir}/{split}", gsp_zarr_path=uk_gsp_zarr_path
+            sample_dir=f"{presaved_samples_dir}/{split}", 
+            gsp_zarr_path=uk_gsp_zarr_path
         )
 
         for i in range(len(dataset)):
             x = dataset[i]
-
             x["pvnet_outputs"] = model.predict_pvnet_batch([x["pvnet_inputs"]])[0].cpu()
             del x["pvnet_inputs"]
 
             torch.save(x, f"{presaved_preds_dir}/{split}/{i:06}.pt")
 
-    yield presaved_preds_dir
+    return presaved_preds_dir
 
 
 @pytest.fixture(scope="session")
@@ -291,5 +293,4 @@ def pvnet_inputs_batch(presaved_samples_dir, uk_gsp_zarr_path):
         num_workers=0,
         prefetch_factor=None,
     )
-
     return next(iter(datamodule.train_dataloader()))
