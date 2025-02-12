@@ -1,12 +1,10 @@
 """Pytorch lightning datamodules for loading pre-saved samples and predictions."""
 
 from glob import glob
-import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, default_collate
 from lightning.pytorch import LightningDataModule
 from ocf_data_sampler.load.gsp import open_gsp
-
 
 
 # https://github.com/pytorch/pytorch/issues/973
@@ -37,9 +35,7 @@ def get_sample_capacities(sample):
 
 
 class SavedSampleDataset(Dataset):
-        
     def __init__(self, sample_dir, gsp_zarr_path):
-
         self.sample_filepaths = glob(f"{sample_dir}/*.pt")
 
         # Load and nornmalise the national GSP data to use as target values
@@ -52,14 +48,15 @@ class SavedSampleDataset(Dataset):
         return len(self.sample_filepaths)
 
     def __getitem__(self, idx):
-
         sample = torch.load(self.sample_filepaths[idx])
 
         sample_valid_times = get_sample_valid_times(sample)
 
         national_outturns = get_national_outturns(self.gsp_data, sample_valid_times)
 
-        national_capacity = get_national_outturns(self.gsp_data.effective_capacity_mwp, sample_valid_times)[0]
+        national_capacity = get_national_outturns(
+            self.gsp_data.effective_capacity_mwp, sample_valid_times
+        )[0]
 
         gsp_capacities = get_sample_capacities(sample)
 
@@ -76,7 +73,8 @@ class SavedSampleDataset(Dataset):
 class SavedSampleDataModule(LightningDataModule):
     """Datamodule for training pvnet_summation."""
 
-    def __init__(self,
+    def __init__(
+        self,
         sample_dir: str,
         gsp_zarr_path: str,
         batch_size=16,
@@ -95,7 +93,7 @@ class SavedSampleDataModule(LightningDataModule):
         super().__init__()
         self.gsp_zarr_path = gsp_zarr_path
         self.sample_dir = sample_dir
-        
+
         self._common_dataloader_kwargs = dict(
             batch_size=batch_size,
             sampler=None,
@@ -127,7 +125,7 @@ class SavedPredictionDataset(Dataset):
 
     def __len__(self):
         return len(self.sample_filepaths)
-    
+
     def __getitem__(self, idx):
         return torch.load(self.sample_filepaths[idx])
 
@@ -158,7 +156,7 @@ class SavedPredictionDataModule(LightningDataModule):
             timeout=0,
             worker_init_fn=None,
             prefetch_factor=prefetch_factor,
-            persistent_workers=num_workers>0,
+            persistent_workers=num_workers > 0,
         )
 
     def train_dataloader(self, shuffle=True):

@@ -69,13 +69,13 @@ class FlatModel(BaseModel):
 
     def forward(self, x):
         """Run model forward"""
-        
+
         if "pvnet_outputs" not in x:
             x["pvnet_outputs"] = self.predict_pvnet_batch(x["pvnet_inputs"])
 
         if self.relative_scale_pvnet_outputs:
             eff_cap = x["effective_capacity"].float().unsqueeze(-1)
-            
+
             if self.pvnet_model.use_quantile_regression:
                 eff_cap = eff_cap.unsqueeze(-1)
 
@@ -85,10 +85,9 @@ class FlatModel(BaseModel):
             x_in = x["pvnet_outputs"] * eff_cap * 100
         else:
             x_in = x["pvnet_outputs"]
-        
+
         x_in = torch.flatten(x_in, start_dim=1)
         out = self.model(x_in)
-        
 
         if self.use_quantile_regression:
             # Shape: batch_size, seq_length * num_quantiles
@@ -101,5 +100,5 @@ class FlatModel(BaseModel):
                 gsp_sum = gsp_sum.unsqueeze(-1)
 
             out = F.leaky_relu(gsp_sum + out)
-        
+
         return out

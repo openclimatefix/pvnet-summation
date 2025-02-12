@@ -106,7 +106,7 @@ class BaseModel(PVNetBaseModel):
             y_hat = self.pvnet_model._quantiles_to_prediction(x["pvnet_outputs"])
         else:
             y_hat = x["pvnet_outputs"]
-                
+
         return (y_hat * x["effective_capacity"]).sum(dim=1)
 
     def _training_accumulate_log(self, batch_idx, losses, y_hat, y, y_sum, times):
@@ -172,12 +172,12 @@ class BaseModel(PVNetBaseModel):
             opt_target = losses["quantile_loss/train"]
         else:
             opt_target = losses["MAE/train"]
-            
+
         return opt_target
 
     def validation_step(self, batch: dict, batch_idx):
         """Run validation step"""
-        
+
         y_hat = self.forward(batch)
         y = batch["national_targets"]
         times = batch["times"]
@@ -185,7 +185,7 @@ class BaseModel(PVNetBaseModel):
 
         losses = self._calculate_common_losses(y, y_hat)
         losses.update(self._calculate_val_losses(y, y_hat))
-        
+
         # Store these to make horizon accuracy plot
         self._horizon_maes.append(
             {i: losses[f"MAE_horizon/step_{i:03}"].cpu().numpy() for i in range(self.forecast_len)}
@@ -194,13 +194,15 @@ class BaseModel(PVNetBaseModel):
         logged_losses = {f"{k}/val": v for k, v in losses.items()}
 
         # Add losses for sum of GSP predictions
-        logged_losses.update({
-            "MSE/val_gsp_sum": F.mse_loss(y_sum, y),
-            "MAE/val_gsp_sum": F.l1_loss(y_sum, y),
-        })
+        logged_losses.update(
+            {
+                "MSE/val_gsp_sum": F.mse_loss(y_sum, y),
+                "MAE/val_gsp_sum": F.l1_loss(y_sum, y),
+            }
+        )
 
         gsp_sum_mae_each_step = torch.mean(torch.abs(y_sum - y), dim=0)
-        
+
         self._gsp_horizon_maes.append(
             {i: gsp_sum_mae_each_step[i].cpu().numpy() for i in range(self.forecast_len)}
         )
@@ -256,7 +258,7 @@ class BaseModel(PVNetBaseModel):
 
     def on_validation_epoch_end(self):
         """Run on epoch end"""
-        
+
         horizon_maes_dict = self._horizon_maes.flush()
         gsp_sum_horizon_maes_dict = self._gsp_horizon_maes.flush()
 
@@ -275,7 +277,7 @@ class BaseModel(PVNetBaseModel):
             except Exception as e:
                 print("Failed to log horizon_loss_curve to wandb")
                 print(e)
-                
+
             per_step_losses = [[i, gsp_sum_horizon_maes_dict[i]] for i in range(self.forecast_len)]
             try:
                 table = wandb.Table(data=per_step_losses, columns=["horizon_step", "MAE"])

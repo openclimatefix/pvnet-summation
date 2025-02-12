@@ -34,18 +34,25 @@ def session_tmp_path(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def sat_zarr_path(session_tmp_path):
-
     # Define coords for satellite-like dataset
     variables = [
-        'IR_016', 'IR_039', 'IR_087', 'IR_097', 'IR_108', 'IR_120', 
-        'IR_134', 'VIS006', 'VIS008', 'WV_062', 'WV_073',
+        "IR_016",
+        "IR_039",
+        "IR_087",
+        "IR_097",
+        "IR_108",
+        "IR_120",
+        "IR_134",
+        "VIS006",
+        "VIS008",
+        "WV_062",
+        "WV_073",
     ]
     x = np.linspace(start=15002, stop=-1824245, num=100)
     y = np.linspace(start=4191563, stop=5304712, num=100)
     times = pd.date_range("2023-01-01 00:00", "2023-01-01 23:55", freq="5min")
-    
-    area_string = (
-        """msg_seviri_rss_3km:
+
+    area_string = """msg_seviri_rss_3km:
         description: MSG SEVIRI Rapid Scanning Service area definition with 3 km resolution
         projection:
             proj: geos
@@ -65,16 +72,15 @@ def sat_zarr_path(session_tmp_path):
             upper_right_xy: [-1816744.1169023514, 4196063.827395439]
             units: m
         """
-    )
-    
+
     # Create satellite-like data with some NaNs
     data = dask.array.zeros(
-        shape=(len(variables), len(times), len(y), len(x)), 
+        shape=(len(variables), len(times), len(y), len(x)),
         chunks=(-1, 10, -1, -1),
-        dtype=np.float32
+        dtype=np.float32,
     )
-    data [:, 10, :, :] = np.nan
-    
+    data[:, 10, :, :] = np.nan
+
     ds = xr.DataArray(
         data=data,
         coords=dict(
@@ -119,10 +125,10 @@ def nwp_ukv_zarr_path(session_tmp_path):
 
     ds = ds.chunk(
         {
-            "init_time": 1, 
-            "step": -1, 
+            "init_time": 1,
+            "step": -1,
             "variable": -1,
-            "x": -1, 
+            "x": -1,
             "y": -1,
         }
     )
@@ -154,11 +160,9 @@ def uk_gsp_zarr_path(session_tmp_path):
         coords=coords,
     )
 
-    ds = xr.Dataset({
-        "capacity_mwp": da_cap, 
-        "installedcapacity_mwp": da_cap, 
-        "generation_mw":da_gen
-    })
+    ds = xr.Dataset(
+        {"capacity_mwp": da_cap, "installedcapacity_mwp": da_cap, "generation_mw": da_gen}
+    )
 
     zarr_path = session_tmp_path / "uk_gsp.zarr"
     ds.to_zarr(zarr_path)
@@ -166,7 +170,9 @@ def uk_gsp_zarr_path(session_tmp_path):
 
 
 @pytest.fixture(scope="session")
-def pvnet_config_filename(session_tmp_path, nwp_ukv_zarr_path, uk_gsp_zarr_path, sat_zarr_path, top_test_directory):
+def pvnet_config_filename(
+    session_tmp_path, nwp_ukv_zarr_path, uk_gsp_zarr_path, sat_zarr_path, top_test_directory
+):
     config = load_yaml_configuration(f"{top_test_directory}/test_data/data_config.yaml")
     config.input_data.nwp["ukv"].zarr_path = nwp_ukv_zarr_path
     config.input_data.satellite.zarr_path = sat_zarr_path
@@ -179,7 +185,6 @@ def pvnet_config_filename(session_tmp_path, nwp_ukv_zarr_path, uk_gsp_zarr_path,
 
 @pytest.fixture(scope="session")
 def presaved_samples_dir(session_tmp_path, pvnet_config_filename, num_samples):
-
     # Set up the sample directory
     samples_dir = f"{session_tmp_path}/presaved_samples"
     os.makedirs(samples_dir, exist_ok=False)
@@ -190,7 +195,7 @@ def presaved_samples_dir(session_tmp_path, pvnet_config_filename, num_samples):
     dataset = PVNetUKConcurrentDataset(pvnet_config_filename)
     sample = next(iter(DataLoader(dataset, batch_size=None, num_workers=0)))
     torch.save(sample, f"{samples_dir}/train/000000.pt")
-    
+
     for i in range(1, num_samples):
         os.system(f"ln -s {samples_dir}/train/000000.pt {samples_dir}/train/{i:06}.pt")
 
@@ -204,7 +209,7 @@ def presaved_samples_dir(session_tmp_path, pvnet_config_filename, num_samples):
 def saved_pvnet_model_path(top_test_directory, session_tmp_path):
     # Create the PVNet model
     model_config_path = f"{top_test_directory}/test_data/pvnet_model_config.yaml"
-    model_config = parse_config(model_config_path) 
+    model_config = parse_config(model_config_path)
 
     model = hydra.utils.instantiate(model_config)
 
@@ -251,23 +256,19 @@ def model(flat_model_kwargs):
 
 @pytest.fixture(scope="session")
 def presaved_predictions_dir(session_tmp_path, presaved_samples_dir, uk_gsp_zarr_path, model):
-
     # Set up the sample directory
     presaved_preds_dir = f"{session_tmp_path}/presaved_predictions"
     os.makedirs(presaved_preds_dir, exist_ok=False)
     os.makedirs(f"{presaved_preds_dir}/train", exist_ok=False)
     os.makedirs(f"{presaved_preds_dir}/val", exist_ok=False)
     shutil.copyfile(
-        f"{presaved_samples_dir}/data_configuration.yaml", 
-        f"{presaved_preds_dir}/data_configuration.yaml"
+        f"{presaved_samples_dir}/data_configuration.yaml",
+        f"{presaved_preds_dir}/data_configuration.yaml",
     )
-
-
 
     for split in ["train", "val"]:
         dataset = SavedSampleDataset(
-            sample_dir=f"{presaved_samples_dir}/{split}", 
-            gsp_zarr_path=uk_gsp_zarr_path
+            sample_dir=f"{presaved_samples_dir}/{split}", gsp_zarr_path=uk_gsp_zarr_path
         )
 
         for i in range(len(dataset)):
@@ -277,15 +278,14 @@ def presaved_predictions_dir(session_tmp_path, presaved_samples_dir, uk_gsp_zarr
             del x["pvnet_inputs"]
 
             torch.save(x, f"{presaved_preds_dir}/{split}/{i:06}.pt")
-        
+
     yield presaved_preds_dir
 
 
 @pytest.fixture(scope="session")
 def pvnet_inputs_batch(presaved_samples_dir, uk_gsp_zarr_path):
-
     datamodule = SavedSampleDataModule(
-        sample_dir=presaved_samples_dir, 
+        sample_dir=presaved_samples_dir,
         gsp_zarr_path=uk_gsp_zarr_path,
         batch_size=2,
         num_workers=0,

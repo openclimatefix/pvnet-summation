@@ -13,6 +13,7 @@ def saved_prediction_datamodule(presaved_predictions_dir):
         prefetch_factor=None,
     )
 
+
 def test_model_trainer_fit(model, saved_prediction_datamodule):
     trainer = lightning.pytorch.trainer.trainer.Trainer(fast_dev_run=True)
     trainer.fit(model=model, datamodule=saved_prediction_datamodule)

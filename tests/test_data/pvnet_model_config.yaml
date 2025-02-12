@@ -7,7 +7,6 @@ output_quantiles: [0.1, 0.5, 0.9]
 #--------------------------------------------
 
 nwp_encoders_dict:
-
   ukv:
     _target_: pvnet.models.multimodal.encoders.encoders3d.DefaultPVNet
     _partial_: True
@@ -16,7 +15,6 @@ nwp_encoders_dict:
     image_size_pixels: 4
     number_of_conv3d_layers: 1
     conv3d_channels: 2
-    
 
 #--------------------------------------------
 # Sat encoder settings
@@ -32,7 +30,6 @@ sat_encoder:
   conv3d_channels: 2
 
 add_image_embedding_channel: False
-
 
 #--------------------------------------------
 # Tabular network settings
@@ -69,7 +66,6 @@ nwp_history_minutes:
 
 nwp_forecast_minutes:
   ukv: 120
-
 
 # ----------------------------------------------
 # Optimizer

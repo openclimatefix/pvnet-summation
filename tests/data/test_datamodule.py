@@ -1,15 +1,14 @@
 from pvnet_summation.data.datamodule import (
-    SavedSampleDataset, 
+    SavedSampleDataset,
     SavedSampleDataModule,
     SavedPredictionDataset,
     SavedPredictionDataModule,
 )
 
-def test_saved_sample_dataset(presaved_samples_dir, uk_gsp_zarr_path, num_samples):
 
+def test_saved_sample_dataset(presaved_samples_dir, uk_gsp_zarr_path, num_samples):
     dataset = SavedSampleDataset(
-        sample_dir=f"{presaved_samples_dir}/train", 
-        gsp_zarr_path=uk_gsp_zarr_path
+        sample_dir=f"{presaved_samples_dir}/train", gsp_zarr_path=uk_gsp_zarr_path
     )
 
     assert len(dataset) == num_samples
@@ -19,9 +18,8 @@ def test_saved_sample_dataset(presaved_samples_dir, uk_gsp_zarr_path, num_sample
 
 
 def test_saved_sample_datamodule(presaved_samples_dir, uk_gsp_zarr_path):
-
     datamodule = SavedSampleDataModule(
-        sample_dir=presaved_samples_dir, 
+        sample_dir=presaved_samples_dir,
         gsp_zarr_path=uk_gsp_zarr_path,
         batch_size=2,
         num_workers=0,
@@ -48,6 +46,6 @@ def test_saved_prediction_datamodule(presaved_predictions_dir):
         num_workers=0,
         prefetch_factor=None,
     )
-    
+
     batch = next(iter(datamodule.train_dataloader()))
     assert isinstance(batch, dict)
