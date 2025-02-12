@@ -106,7 +106,7 @@ def train(config: DictConfig) -> Optional[float]:
                     x = [copy_batch_to_device(conc_sample_dict["pvnet_inputs"], device)]
                     conc_sample_dict["pvnet_outputs"] = model.predict_pvnet_batch(x)[0].cpu()
                     del conc_sample_dict["pvnet_inputs"]
-                    
+
                     # Save pvnet prediction sample
                     sample_path = f"{save_dir}/{split}/{i:06}.pt"
                     torch.save(conc_sample_dict, sample_path)
