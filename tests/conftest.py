@@ -210,7 +210,7 @@ def presaved_samples_dir(session_tmp_path, pvnet_config_filename, num_samples):
 def saved_pvnet_model_path(session_tmp_path, test_root_directory):
     # Create the PVNet model
     model_config_path = f"{test_root_directory}/test_data/pvnet_model_config.yaml"
-    with open(model_config_path, 'r') as stream:
+    with open(model_config_path, "r") as stream:
         model_config = yaml.safe_load(stream)
 
     model = hydra.utils.instantiate(model_config)
@@ -270,8 +270,7 @@ def presaved_predictions_dir(session_tmp_path, presaved_samples_dir, uk_gsp_zarr
     # Make PVNet predictions for all samples and save them
     for split in ["train", "val"]:
         dataset = SavedSampleDataset(
-            sample_dir=f"{presaved_samples_dir}/{split}", 
-            gsp_zarr_path=uk_gsp_zarr_path
+            sample_dir=f"{presaved_samples_dir}/{split}", gsp_zarr_path=uk_gsp_zarr_path
         )
 
         for i in range(len(dataset)):
