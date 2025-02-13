@@ -1,4 +1,8 @@
-"""Pytorch lightning datamodules for loading pre-saved samples and predictions."""
+"""Pytorch lightning datamodules for loading pre-saved samples and predictions.
+
+The pre-saced samplea can be prepared using the save_concurrent_samples.py script from the PVNet
+library: https://github.com/openclimatefix/PVNet
+"""
 
 from glob import glob
 import torch
@@ -11,7 +15,7 @@ from ocf_data_sampler.load.gsp import open_gsp
 torch.multiprocessing.set_sharing_strategy("file_system")
 
 
-def collate_summation_samples(samples: list):
+def collate_summation_samples(samples: list[dict]) -> dict:
     batch_dict = {}
     batch_dict["pvnet_inputs"] = [s["pvnet_inputs"] for s in samples]
     for key in ["effective_capacity", "national_targets", "times"]:
@@ -19,23 +23,23 @@ def collate_summation_samples(samples: list):
     return batch_dict
 
 
-def get_national_outturns(gsp_data, times):
+def get_national_outturns(gsp_data, times) -> torch.Tensor:
     return torch.as_tensor(
         gsp_data.sel(time_utc=times.cpu().numpy().astype("datetime64[ns]")).values
     )
 
 
-def get_sample_valid_times(sample: dict):
+def get_sample_valid_times(sample: dict) -> torch.Tensor:
     id0 = int(sample["gsp_t0_idx"])
     return sample["gsp_time_utc"][0, id0 + 1 :]
 
 
-def get_sample_capacities(sample):
+def get_sample_capacities(sample: dict) -> torch.Tensor:
     return sample["gsp_effective_capacity_mwp"].float().unsqueeze(-1)
 
 
 class SavedSampleDataset(Dataset):
-    def __init__(self, sample_dir, gsp_zarr_path):
+    def __init__(self, sample_dir: str, gsp_zarr_path: str):
         self.sample_filepaths = glob(f"{sample_dir}/*.pt")
 
         # Load and nornmalise the national GSP data to use as target values
@@ -44,10 +48,10 @@ class SavedSampleDataset(Dataset):
 
         self.gsp_data = gsp_data
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.sample_filepaths)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> dict:
         sample = torch.load(self.sample_filepaths[idx])
 
         sample_valid_times = get_sample_valid_times(sample)
@@ -77,9 +81,9 @@ class SavedSampleDataModule(LightningDataModule):
         self,
         sample_dir: str,
         gsp_zarr_path: str,
-        batch_size=16,
-        num_workers=0,
-        prefetch_factor=None,
+        batch_size: int = 16,
+        num_workers: int = 0,
+        prefetch_factor: int | None = None,
     ):
         """Datamodule for training pvnet_summation.
 
@@ -98,7 +102,7 @@ class SavedSampleDataModule(LightningDataModule):
         self.prefetch_factor = prefetch_factor
 
     @property
-    def _dataloader_kwargs(self):
+    def _dataloader_kwargs(self) -> dict:
         return dict(
             batch_size=self.batch_size,
             sampler=None,
@@ -113,32 +117,38 @@ class SavedSampleDataModule(LightningDataModule):
             persistent_workers=self.num_workers > 0,
         )
 
-    def train_dataloader(self, shuffle=True):
+    def train_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct train dataloader"""
         dataset = SavedSampleDataset(f"{self.sample_dir}/train", self.gsp_zarr_path)
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
-    def val_dataloader(self, shuffle=False):
+    def val_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct val dataloader"""
         dataset = SavedSampleDataset(f"{self.sample_dir}/val", self.gsp_zarr_path)
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
 
 class SavedPredictionDataset(Dataset):
-    def __init__(self, sample_dir):
-        self.sample_filepaths = glob(f"{sample_dir}/*.pt")
+    def __init__(self, sample_dir: str):
+        self.sample_filepaths = sorted(glob(f"{sample_dir}/*.pt"))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.sample_filepaths)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> dict:
         return torch.load(self.sample_filepaths[idx])
 
 
 class SavedPredictionDataModule(LightningDataModule):
     """Datamodule for loading pre-saved PVNet predictions to train pvnet_summation."""
 
-    def __init__(self, sample_dir: str, batch_size=16, num_workers=0, prefetch_factor=None):
+    def __init__(
+        self,
+        sample_dir: str,
+        batch_size: int = 16,
+        num_workers: int = 0,
+        prefetch_factor: int | None = None,
+    ):
         """Datamodule for loading pre-saved PVNet predictions to train pvnet_summation.
 
         Args:
@@ -154,7 +164,7 @@ class SavedPredictionDataModule(LightningDataModule):
         self.prefetch_factor = prefetch_factor
 
     @property
-    def _dataloader_kwargs(self):
+    def _dataloader_kwargs(self) -> dict:
         return dict(
             batch_size=self.batch_size,
             sampler=None,
@@ -169,12 +179,12 @@ class SavedPredictionDataModule(LightningDataModule):
             persistent_workers=self.num_workers > 0,
         )
 
-    def train_dataloader(self, shuffle=True):
+    def train_dataloader(self, shuffle: bool = True) -> DataLoader:
         """Construct train dataloader"""
         dataset = SavedPredictionDataset(f"{self.sample_dir}/train")
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
-    def val_dataloader(self, shuffle=False):
+    def val_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct val dataloader"""
         dataset = SavedPredictionDataset(f"{self.sample_dir}/val")
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
