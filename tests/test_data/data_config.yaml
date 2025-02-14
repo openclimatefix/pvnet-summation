@@ -1,0 +1,39 @@
+general:
+  description: Test config for PVNet
+  name: pvnet_test
+
+input_data:
+  gsp:
+    zarr_path: set_in_temp_file
+    interval_start_minutes: -60
+    interval_end_minutes: 120
+    time_resolution_minutes: 30
+    dropout_timedeltas_minutes: null
+    dropout_fraction: 0
+
+  nwp:
+    ukv:
+      provider: ukv
+      zarr_path: set_in_temp_file
+      interval_start_minutes: -60
+      interval_end_minutes: 120
+      time_resolution_minutes: 60
+      channels:
+        - t # 2-metre temperature
+      image_size_pixels_height: 4
+      image_size_pixels_width: 4
+      dropout_timedeltas_minutes: [-180]
+      dropout_fraction: 1.0
+      max_staleness_minutes: null
+
+  satellite:
+    zarr_path: set_in_temp_file
+    interval_start_minutes: -30
+    interval_end_minutes: 0
+    time_resolution_minutes: 5
+    channels:
+      - IR_016
+    image_size_pixels_height: 4
+    image_size_pixels_width: 4
+    dropout_timedeltas_minutes: null
+    dropout_fraction: 0

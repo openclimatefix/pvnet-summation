@@ -8,7 +8,7 @@ import pylab
 def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None, y_sum=None):
     """Plot a batch of data and the forecast from that batch"""
 
-    times_utc = times.cpu().numpy().squeeze().astype("datetime64[s]")
+    times_utc = times.cpu().numpy().squeeze().astype("datetime64[ns]")
     times_utc = [pd.to_datetime(t) for t in times_utc]
     y = y.cpu().numpy()
     y_hat = y_hat.cpu().numpy()

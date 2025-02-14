@@ -74,10 +74,10 @@ class FlatModel(BaseModel):
             x["pvnet_outputs"] = self.predict_pvnet_batch(x["pvnet_inputs"])
 
         if self.relative_scale_pvnet_outputs:
+            eff_cap = x["effective_capacity"].float().unsqueeze(-1)
+
             if self.pvnet_model.use_quantile_regression:
-                eff_cap = x["effective_capacity"].unsqueeze(-1)
-            else:
-                eff_cap = x["effective_capacity"]
+                eff_cap = eff_cap.unsqueeze(-1)
 
             # The effective_capacit[ies] are relative fractions of the national capacity. They sum
             # to 1 and they are quite small values. For the largest GSP the capacity is around 0.03.

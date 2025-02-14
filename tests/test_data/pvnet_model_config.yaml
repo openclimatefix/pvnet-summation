@@ -1,0 +1,80 @@
+_target_: pvnet.models.multimodal.multimodal.Model
+
+output_quantiles: [0.1, 0.5, 0.9]
+
+#--------------------------------------------
+# NWP encoder
+#--------------------------------------------
+
+nwp_encoders_dict:
+  ukv:
+    _target_: pvnet.models.multimodal.encoders.encoders3d.DefaultPVNet
+    _partial_: True
+    in_channels: 1
+    out_features: 8
+    image_size_pixels: 4
+    number_of_conv3d_layers: 1
+    conv3d_channels: 2
+
+#--------------------------------------------
+# Sat encoder settings
+#--------------------------------------------
+
+sat_encoder:
+  _target_: pvnet.models.multimodal.encoders.encoders3d.DefaultPVNet
+  _partial_: True
+  in_channels: 1
+  out_features: 8
+  image_size_pixels: 4
+  number_of_conv3d_layers: 1
+  conv3d_channels: 2
+
+add_image_embedding_channel: False
+
+#--------------------------------------------
+# Tabular network settings
+#--------------------------------------------
+
+output_network:
+  _target_: pvnet.models.multimodal.linear_networks.networks.ResFCNet2
+  _partial_: True
+  fc_hidden_features: 8
+  n_res_blocks: 2
+  res_block_layers: 1
+  dropout_frac: 0.0
+
+embedding_dim: 2
+include_sun: True
+include_gsp_yield_history: False
+
+#--------------------------------------------
+# Times
+#--------------------------------------------
+
+# Foreast and time settings
+forecast_minutes: 120
+history_minutes: 60
+
+min_sat_delay_minutes: 0
+
+# These must also be set even if identical to forecast_minutes and  history_minutes
+sat_history_minutes: 30
+
+# These must be set for each NWP encoder
+nwp_history_minutes:
+  ukv: 60
+
+nwp_forecast_minutes:
+  ukv: 120
+
+# ----------------------------------------------
+# Optimizer
+# ----------------------------------------------
+optimizer:
+  _target_: pvnet.optimizers.EmbAdamWReduceLROnPlateau
+  lr: 0.0001
+  weight_decay: 0.01
+  amsgrad: True
+  patience: 10
+  factor: 0.1
+  threshold: 0.002

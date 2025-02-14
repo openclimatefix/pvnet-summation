@@ -11,7 +11,6 @@ from pvnet.models.base_model import PVNetModelHubMixin
 from pvnet.models.utils import (
     MetricAccumulator,
     PredAccumulator,
-    WeightedLosses,
 )
 from pvnet.optimizers import AbstractOptimizer
 
@@ -67,14 +66,13 @@ class BaseModel(PVNetBaseModel):
         # Number of timestemps for 30 minutely data
         self.forecast_len = self.forecast_minutes // 30
 
-        self.weighted_losses = WeightedLosses(forecast_length=self.forecast_len)
-
         self._accumulated_metrics = MetricAccumulator()
         self._accumulated_y = PredAccumulator()
         self._accumulated_y_hat = PredAccumulator()
         self._accumulated_y_sum = PredAccumulator()
         self._accumulated_times = PredAccumulator()
         self._horizon_maes = MetricAccumulator()
+        self._gsp_horizon_maes = MetricAccumulator()
 
         self.use_quantile_regression = self.output_quantiles is not None
 
@@ -174,6 +172,7 @@ class BaseModel(PVNetBaseModel):
             opt_target = losses["quantile_loss/train"]
         else:
             opt_target = losses["MAE/train"]
+
         return opt_target
 
     def validation_step(self, batch: dict, batch_idx):
@@ -195,17 +194,18 @@ class BaseModel(PVNetBaseModel):
         logged_losses = {f"{k}/val": v for k, v in losses.items()}
 
         # Add losses for sum of GSP predictions
-        gsp_sum_losses = {
-            "MSE/val": F.mse_loss(y_sum, y),
-            "MAE/val": F.l1_loss(y_sum, y),
-        }
+        logged_losses.update(
+            {
+                "MSE/val_gsp_sum": F.mse_loss(y_sum, y),
+                "MAE/val_gsp_sum": F.l1_loss(y_sum, y),
+            }
+        )
 
-        mse_each_step = torch.mean((y_sum - y) ** 2, dim=0)
-        mae_each_step = torch.mean(torch.abs(y_sum - y), dim=0)
-        gsp_sum_losses.update({f"MSE_horizon/step_{i:02}": m for i, m in enumerate(mse_each_step)})
-        gsp_sum_losses.update({f"MAE_horizon/step_{i:02}": m for i, m in enumerate(mae_each_step)})
+        gsp_sum_mae_each_step = torch.mean(torch.abs(y_sum - y), dim=0)
 
-        logged_losses.update({f"{k}_gsp_sum": v for k, v in gsp_sum_losses.items()})
+        self._gsp_horizon_maes.append(
+            {i: gsp_sum_mae_each_step[i].cpu().numpy() for i in range(self.forecast_len)}
+        )
 
         self.log_dict(
             logged_losses,
@@ -256,24 +256,41 @@ class BaseModel(PVNetBaseModel):
 
         return logged_losses
 
-    def test_step(self, batch, batch_idx):
-        """Run test step"""
+    def on_validation_epoch_end(self):
+        """Run on epoch end"""
 
-        y_hat = self.forward(batch)
-        y = batch["national_targets"]
+        horizon_maes_dict = self._horizon_maes.flush()
+        gsp_sum_horizon_maes_dict = self._gsp_horizon_maes.flush()
 
-        losses = self._calculate_common_losses(y, y_hat)
-        losses.update(self._calculate_val_losses(y, y_hat))
-        losses.update(self._calculate_test_losses(y, y_hat))
-        logged_losses = {f"{k}/test": v for k, v in losses.items()}
+        # Create the horizon accuracy curve
+        if isinstance(self.logger, pl.loggers.WandbLogger):
+            per_step_losses = [[i, horizon_maes_dict[i]] for i in range(self.forecast_len)]
+            try:
+                table = wandb.Table(data=per_step_losses, columns=["horizon_step", "MAE"])
+                wandb.log(
+                    {
+                        "horizon_loss_curve": wandb.plot.line(
+                            table, "horizon_step", "MAE", title="Horizon loss curve"
+                        )
+                    },
+                )
+            except Exception as e:
+                print("Failed to log horizon_loss_curve to wandb")
+                print(e)
 
-        self.log_dict(
-            logged_losses,
-            on_step=False,
-            on_epoch=True,
-        )
-
-        return logged_losses
+            per_step_losses = [[i, gsp_sum_horizon_maes_dict[i]] for i in range(self.forecast_len)]
+            try:
+                table = wandb.Table(data=per_step_losses, columns=["horizon_step", "MAE"])
+                wandb.log(
+                    {
+                        "gsp_sum_horizon_loss_curve": wandb.plot.line(
+                            table, "horizon_step", "MAE", title="GSP-sum horizon loss curve"
+                        )
+                    },
+                )
+            except Exception as e:
+                print("Failed to log horizon_loss_curve to wandb")
+                print(e)
 
     def configure_optimizers(self):
         """Configure the optimizers using learning rate found with LR finder if used"""
