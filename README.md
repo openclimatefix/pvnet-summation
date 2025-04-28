@@ -3,7 +3,7 @@
 
 This project is used for training a model to sum the GSP predictions of [PVNet](https://github.com/openclimatefix/PVNet) into a national estimate.
 
-Using this model to sum the GSP predictions rather than doing a simple sum increases the accuracy of the national predictions and can be configured to produce estimates of the uncertainty range of the national estimate. See the [PVNet](https://github.com/openclimatefix/PVNet) repo for more details and our paper.
+Using the summation model to sum the GSP predictions rather than doing a simple sum increases the accuracy of the national predictions and can be configured to produce estimates of the uncertainty range of the national estimate. See the [PVNet](https://github.com/openclimatefix/PVNet) repo for more details and our paper.
 
 
 ## Setup / Installation
@@ -23,7 +23,7 @@ pip install ".[dev]"
 ## Getting started with running PVNet summation
 
 In order to run PVNet summation, we assume that you are already set up with
-[PVNet](https://github.com/openclimatefix/PVNet) and have met all the requirements there.
+[PVNet](https://github.com/openclimatefix/PVNet) and have a trained PVNet model already available either locally or pushed to HuggingFace.
 
 Before running any code, copy the example configuration to a
 configs directory:
@@ -86,6 +86,7 @@ Assuming you have updated the configs, you should now be able to run:
 python run.py
 ```
 
+This will then use the pretrained PVNet model to run inference on the concurrent_batches, the outputs from this inference will then be used as the training data for the summation model alongside the national PVLive data (GSP ID 0).  
 
 ## Testing
 
