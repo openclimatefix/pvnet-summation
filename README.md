@@ -86,7 +86,7 @@ Assuming you have updated the configs, you should now be able to run:
 python run.py
 ```
 
-This will then use the pretrained PVNet model to run inference on the concurrent_batches, the outputs from this inference will then be used as the training data for the summation model alongside the national PVLive data (GSP ID 0).  
+This will then use the pretrained PVNet model to run inference on the concurrent_batches, the outputs from this inference will then be used as the training data for the summation model alongside the national PVLive data (GSP ID 0).
 
 ## Testing
 
