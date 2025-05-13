@@ -16,7 +16,7 @@ def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None, y_sum=None):
 
     batch_size = y.shape[0]
 
-    fig, axes = plt.subplots(4, 4, figsize=(8, 8))
+    fig, axes = plt.subplots(4, 4, figsize=(16, 16))
 
     for i, ax in enumerate(axes.ravel()):
         if i >= batch_size:
@@ -27,7 +27,7 @@ def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None, y_sum=None):
 
         if y_sum is not None:
             ax.plot(
-                times_utc[i], y_sum[i], marker=".", linestyle="--", color="k", label=r"$y_{sum}$"
+                times_utc[i], y_sum[i], marker=".", linestyle="--", color="0.5", label=r"$y_{sum}$"
             )
 
         if quantiles is None:
