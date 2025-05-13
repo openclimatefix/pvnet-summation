@@ -27,7 +27,7 @@ def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None, y_sum=None):
 
         if y_sum is not None:
             ax.plot(
-                times_utc[i], y_sum[i], marker=".", linestyle="--", color="k", label=r"$y_{sum}$"
+                times_utc[i], y_sum[i], marker=".", linestyle="--", color="0.5", label=r"$y_{sum}$"
             )
 
         if quantiles is None:
