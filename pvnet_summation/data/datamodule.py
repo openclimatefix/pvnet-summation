@@ -52,7 +52,7 @@ class SavedSampleDataset(Dataset):
         return len(self.sample_filepaths)
 
     def __getitem__(self, idx) -> dict:
-        sample = torch.load(self.sample_filepaths[idx])
+        sample = torch.load(self.sample_filepaths[idx], weights_only=False)
 
         sample_valid_times = get_sample_valid_times(sample)
 
@@ -136,7 +136,7 @@ class SavedPredictionDataset(Dataset):
         return len(self.sample_filepaths)
 
     def __getitem__(self, idx: int) -> dict:
-        return torch.load(self.sample_filepaths[idx])
+        return torch.load(self.sample_filepaths[idx], weights_only=False)
 
 
 class SavedPredictionDataModule(LightningDataModule):

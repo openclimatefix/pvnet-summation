@@ -6,6 +6,7 @@ import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
 import wandb
+import pvnet
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
 from pvnet.models.base_model import PVNetModelHubMixin
 from pvnet.models.utils import (
@@ -30,7 +31,8 @@ class BaseModel(PVNetBaseModel):
         self,
         model_name: str,
         model_version: Optional[str],
-        optimizer: AbstractOptimizer,
+        num_locations: int = 317,
+        optimizer: AbstractOptimizer = pvnet.optimizers.Adam(),
         output_quantiles: Optional[list[float]] = None,
     ):
         """Abtstract base class for PVNet summation submodels.
@@ -38,6 +40,7 @@ class BaseModel(PVNetBaseModel):
         Args:
             model_name: Model path either locally or on huggingface.
             model_version: Model version if using huggingface. Set to None if using local.
+            num_locations: The number of regional GSP locations.
             optimizer (AbstractOptimizer): Optimizer
             output_quantiles: A list of float (0.0, 1.0) quantiles to predict values for. If set to
                 None the output is a single value.
@@ -47,6 +50,7 @@ class BaseModel(PVNetBaseModel):
 
         self.pvnet_model_name = model_name
         self.pvnet_model_version = model_version
+        self.num_locations = num_locations
 
         self.pvnet_model = PVNetBaseModel.from_pretrained(
             model_id=model_name,
@@ -83,12 +87,12 @@ class BaseModel(PVNetBaseModel):
 
         if self.pvnet_model.use_quantile_regression:
             self.pvnet_output_shape = (
-                317,
+                num_locations,
                 self.pvnet_model.forecast_len,
                 len(self.pvnet_model.output_quantiles),
             )
         else:
-            self.pvnet_output_shape = (317, self.pvnet_model.forecast_len)
+            self.pvnet_output_shape = (num_locations, self.pvnet_model.forecast_len)
 
         self.use_weighted_loss = False
 
