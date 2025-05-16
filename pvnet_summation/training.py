@@ -17,7 +17,7 @@ from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 from pvnet import utils
 from tqdm import tqdm
-from ocf_datapipes.batch import copy_batch_to_device
+from ocf_data_sampler.torch_datasets.sample.base import copy_batch_to_device
 
 from pvnet_summation.data.datamodule import SavedPredictionDataModule
 
