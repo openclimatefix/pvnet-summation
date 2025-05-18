@@ -127,13 +127,17 @@ class SavedSampleDataModule(LightningDataModule):
         dataset = SavedSampleDataset(
             f"{self.sample_dir}/train", 
             self.gsp_zarr_path, 
-            self.gsp_boundaries_version
+            self.gsp_boundaries_version,
         )
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
     def val_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct val dataloader"""
-        dataset = SavedSampleDataset(f"{self.sample_dir}/val", self.gsp_zarr_path)
+        dataset = SavedSampleDataset(
+            f"{self.sample_dir}/val", 
+            self.gsp_zarr_path,
+            self.gsp_boundaries_version,
+        )
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
 
