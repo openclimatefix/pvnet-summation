@@ -112,7 +112,7 @@ def train(config: DictConfig) -> Optional[float]:
                     
                     # Clip the inputs specifically for this summation model
                     for key in ['national_targets', "times"]:
-                        conc_sample_dict[key] = conc_sample_dict[key][:, :model.forecast_len]
+                        conc_sample_dict[key] = conc_sample_dict[key][:model.forecast_len]
 
                     # Save pvnet prediction sample
                     sample_path = f"{save_dir}/{split}/{i:06}.pt"
