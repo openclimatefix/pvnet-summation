@@ -102,17 +102,16 @@ def train(config: DictConfig) -> Optional[float]:
                 dataloader = dataloader_func(shuffle=False)
 
                 for i, conc_sample_dict in tqdm(enumerate(dataloader)):
-                    
                     # Run PVNet inputs though model and add to sample
                     x = [copy_batch_to_device(conc_sample_dict["pvnet_inputs"], device)]
                     conc_sample_dict["pvnet_outputs"] = model.predict_pvnet_batch(x)[0].cpu()
-                    
+
                     # No longer need the PVNet inputs, and they are big, so remove them from sample
                     del conc_sample_dict["pvnet_inputs"]
-                    
+
                     # Clip the inputs specifically for this summation model
-                    for key in ['national_targets', "times"]:
-                        conc_sample_dict[key] = conc_sample_dict[key][:model.forecast_len]
+                    for key in ["national_targets", "times"]:
+                        conc_sample_dict[key] = conc_sample_dict[key][: model.forecast_len]
 
                     # Save pvnet prediction sample
                     sample_path = f"{save_dir}/{split}/{i:06}.pt"

@@ -43,10 +43,11 @@ class SavedSampleDataset(Dataset):
         self.sample_filepaths = glob(f"{sample_dir}/*.pt")
 
         # Load and nornmalise the national GSP data to use as target values
-        gsp_data = open_gsp(
-            zarr_path=gsp_zarr_path, 
-            boundaries_version=gsp_boundaries_version
-        ).sel(gsp_id=0).compute()
+        gsp_data = (
+            open_gsp(zarr_path=gsp_zarr_path, boundaries_version=gsp_boundaries_version)
+            .sel(gsp_id=0)
+            .compute()
+        )
         gsp_data = gsp_data / gsp_data.effective_capacity_mwp
 
         self.gsp_data = gsp_data
@@ -125,8 +126,8 @@ class SavedSampleDataModule(LightningDataModule):
     def train_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct train dataloader"""
         dataset = SavedSampleDataset(
-            f"{self.sample_dir}/train", 
-            self.gsp_zarr_path, 
+            f"{self.sample_dir}/train",
+            self.gsp_zarr_path,
             self.gsp_boundaries_version,
         )
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
@@ -134,7 +135,7 @@ class SavedSampleDataModule(LightningDataModule):
     def val_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct val dataloader"""
         dataset = SavedSampleDataset(
-            f"{self.sample_dir}/val", 
+            f"{self.sample_dir}/val",
             self.gsp_zarr_path,
             self.gsp_boundaries_version,
         )
