@@ -104,7 +104,11 @@ def train(config: DictConfig) -> Optional[float]:
                 for i, conc_sample_dict in tqdm(enumerate(dataloader)):
                     # Run PVNet inputs though model and remove from sample
                     x = [copy_batch_to_device(conc_sample_dict["pvnet_inputs"], device)]
-                    conc_sample_dict["pvnet_outputs"] = model.predict_pvnet_batch(x)[0].cpu()
+                    y_hat_regional = model.predict_pvnet_batch(x)[0].cpu()
+                    
+                    # Clip the inputs specifically for this model before saving
+                    conc_sample_dict = model._adapt_batch(conc_sample_dict)
+                    conc_sample_dict["pvnet_outputs"] = y_hat_regional
                     del conc_sample_dict["pvnet_inputs"]
 
                     # Save pvnet prediction sample
