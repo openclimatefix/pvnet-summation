@@ -22,6 +22,8 @@ import pvnet_summation
 
 def push_to_huggingface(
     checkpoint_dir_path: str,
+    huggingface_repo: str = "openclimatefix/pvnet_v2_summation",
+    wandb_repo: str = "openclimatefix/pvnet_summation",
     val_best: bool = True,
     wandb_id: Optional[str] = None,
     local_path: Optional[str] = None,
@@ -30,6 +32,8 @@ def push_to_huggingface(
     """Push a local model to openclimatefix/pvnet_v2_summation huggingface model repo
 
     checkpoint_dir_path (str): Path of the chekpoint directory
+    huggingface_repo: Name of the HuggingFace repo to push the model to
+    wandb_repo: Name of the wandb repo which has training logs
     val_best (bool): Use best model according to val loss, else last saved model
     wandb_id (str): The wandb ID code
     local_path (str): Where to save the local copy of the model
@@ -42,7 +46,7 @@ def push_to_huggingface(
 
     # Check if checkpoint dir name is wandb run ID
     if wandb_id is None:
-        all_wandb_ids = [run.id for run in wandb.Api().runs(path="openclimatefix/pvnet_summation")]
+        all_wandb_ids = [run.id for run in wandb.Api().runs(path=wandb_repo)]
         dirname = checkpoint_dir_path.split("/")[-1]
         if dirname in all_wandb_ids:
             wandb_id = dirname
@@ -73,9 +77,10 @@ def push_to_huggingface(
         model_output_dir,
         config=model_config,
         data_config=None,
-        wandb_ids=wandb_id,
+        wandb_repo=wandb_repo,
+        wandb_ids=[wandb_id],
         push_to_hub=push_to_hub,
-        repo_id="openclimatefix/pvnet_v2_summation" if push_to_hub else None,
+        repo_id=huggingface_repo,
         card_template_path=(
             Path(pvnet_summation.__file__).parent / "models" / "model_card_template.md"
         ),

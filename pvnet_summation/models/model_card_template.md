@@ -38,7 +38,8 @@ The input data is prepared with the `ocf_data_sampler` [3].
 
 ## Results
 
-The training logs for the current model can be found [here on wandb](https://wandb.ai/openclimatefix/pvnet_summation/runs/{{ wandb_model_code }}).
+The training logs for the current model can be found here:
+{{ wandb_links }}
 
 The training logs for all model runs of PVNet_summation can be found [here](https://wandb.ai/openclimatefix/pvnet_summation).
 
