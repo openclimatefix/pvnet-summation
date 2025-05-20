@@ -39,11 +39,15 @@ def get_sample_capacities(sample: dict) -> torch.Tensor:
 
 
 class SavedSampleDataset(Dataset):
-    def __init__(self, sample_dir: str, gsp_zarr_path: str):
+    def __init__(self, sample_dir: str, gsp_zarr_path: str, gsp_boundaries_version="20220314"):
         self.sample_filepaths = glob(f"{sample_dir}/*.pt")
 
         # Load and nornmalise the national GSP data to use as target values
-        gsp_data = open_gsp(zarr_path=gsp_zarr_path).sel(gsp_id=0).compute()
+        gsp_data = (
+            open_gsp(zarr_path=gsp_zarr_path, boundaries_version=gsp_boundaries_version)
+            .sel(gsp_id=0)
+            .compute()
+        )
         gsp_data = gsp_data / gsp_data.effective_capacity_mwp
 
         self.gsp_data = gsp_data
@@ -52,7 +56,7 @@ class SavedSampleDataset(Dataset):
         return len(self.sample_filepaths)
 
     def __getitem__(self, idx) -> dict:
-        sample = torch.load(self.sample_filepaths[idx])
+        sample = torch.load(self.sample_filepaths[idx], weights_only=False)
 
         sample_valid_times = get_sample_valid_times(sample)
 
@@ -81,6 +85,7 @@ class SavedSampleDataModule(LightningDataModule):
         self,
         sample_dir: str,
         gsp_zarr_path: str,
+        gsp_boundaries_version: str = "20220314",
         batch_size: int = 16,
         num_workers: int = 0,
         prefetch_factor: int | None = None,
@@ -96,6 +101,7 @@ class SavedSampleDataModule(LightningDataModule):
         """
         super().__init__()
         self.gsp_zarr_path = gsp_zarr_path
+        self.gsp_boundaries_version = gsp_boundaries_version
         self.sample_dir = sample_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -119,12 +125,20 @@ class SavedSampleDataModule(LightningDataModule):
 
     def train_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct train dataloader"""
-        dataset = SavedSampleDataset(f"{self.sample_dir}/train", self.gsp_zarr_path)
+        dataset = SavedSampleDataset(
+            f"{self.sample_dir}/train",
+            self.gsp_zarr_path,
+            self.gsp_boundaries_version,
+        )
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
     def val_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct val dataloader"""
-        dataset = SavedSampleDataset(f"{self.sample_dir}/val", self.gsp_zarr_path)
+        dataset = SavedSampleDataset(
+            f"{self.sample_dir}/val",
+            self.gsp_zarr_path,
+            self.gsp_boundaries_version,
+        )
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
 
@@ -136,7 +150,7 @@ class SavedPredictionDataset(Dataset):
         return len(self.sample_filepaths)
 
     def __getitem__(self, idx: int) -> dict:
-        return torch.load(self.sample_filepaths[idx])
+        return torch.load(self.sample_filepaths[idx], weights_only=False)
 
 
 class SavedPredictionDataModule(LightningDataModule):

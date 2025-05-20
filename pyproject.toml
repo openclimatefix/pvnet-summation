@@ -6,30 +6,22 @@ dynamic = ["version", "readme"]
 license={file="LICENCE"}
 
 dependencies = [
-    "ocf_datapipes>=3.3.33",
     "ocf_data_sampler",
-    "pvnet>=4.0.0",
+    "pvnet>=4.1.13",
     "numpy",
     "pandas",
     "matplotlib",
     "xarray",
-    "ipykernel",
-    "h5netcdf",
     "torch>=2.0.0",
     "lightning>=2.0.1",
     "pytest",
     "pytest-cov",
     "typer",
     "sqlalchemy",
-    "fsspec[s3]",
     "wandb",
-    "tensorboard",
     "tqdm",
     "omegaconf",
     "hydra-core",
-    "python-dotenv",
-    "huggingface-hub",
-    "geopandas==0.14.4",
 ]
 
 [tool.setuptools.dynamic]

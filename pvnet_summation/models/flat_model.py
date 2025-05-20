@@ -26,6 +26,7 @@ class FlatModel(BaseModel):
         output_network: AbstractLinearNetwork,
         model_name: str,
         model_version: Optional[str] = None,
+        num_locations: int = 317,
         output_quantiles: Optional[list[float]] = None,
         relative_scale_pvnet_outputs: bool = False,
         predict_difference_from_sum: bool = False,
@@ -34,12 +35,13 @@ class FlatModel(BaseModel):
         """Neural network which combines GSP predictions from PVNet naively
 
         Args:
-            model_name: Model path either locally or on huggingface.
-            model_version: Model version if using huggingface. Set to None if using local.
-            output_quantiles: A list of float (0.0, 1.0) quantiles to predict values for. If set to
-                None the output is a single value.
             output_network: A partially instantiated pytorch Module class used to combine the 1D
                 features to produce the forecast.
+            model_name: Model path either locally or on huggingface.
+            model_version: Model version if using huggingface. Set to None if using local.
+            num_locations: The number of regional GSP locations.
+            output_quantiles: A list of float (0.0, 1.0) quantiles to predict values for. If set to
+                None the output is a single value.
             relative_scale_pvnet_outputs: If true, the PVNet predictions are scaled by a factor
                 which is proportional to their capacities.
             predict_difference_from_sum: Whether to use the sum of GSPs as an estimate for the
@@ -48,7 +50,7 @@ class FlatModel(BaseModel):
             optimizer (AbstractOptimizer): Optimizer
         """
 
-        super().__init__(model_name, model_version, optimizer, output_quantiles)
+        super().__init__(model_name, model_version, num_locations, optimizer, output_quantiles)
 
         self.relative_scale_pvnet_outputs = relative_scale_pvnet_outputs
         self.predict_difference_from_sum = predict_difference_from_sum
