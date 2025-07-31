@@ -1,47 +1,52 @@
+[build-system]
+requires = ["setuptools>=67", "wheel", "setuptools-git-versioning>=2.0,<3"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name="PVNet_summation"
 description = "PVNet_summation"
 authors = [{name="James Fulton", email="info@openclimatefix.org"}]
-dynamic = ["version", "readme"]
+dynamic = ["version"]
 license={file="LICENCE"}
+readme = {file="README.md", content-type="text/markdown"}
+requires-python = ">=3.10"
+
 
 dependencies = [
-    "ocf_data_sampler",
-    "pvnet>=4.1.13",
+    "ocf-data-sampler>=0.2.32",
     "numpy",
     "pandas",
     "matplotlib",
     "xarray",
+    "h5netcdf",
     "torch>=2.0.0",
-    "lightning>=2.0.1",
-    "pytest",
-    "pytest-cov",
+    "lightning",
+    "torchvision",
     "typer",
     "sqlalchemy",
+    "fsspec[s3]",
     "wandb",
+    "huggingface-hub",
     "tqdm",
     "omegaconf",
     "hydra-core",
+    "rich",
+    "safetensors",
 ]
 
-[tool.setuptools.dynamic]
-version = {attr = "pvnet_summation.__version__"}
-readme = {file = "README.md", content-type = "text/markdown"}
-
-[tool.setuptools.package-dir]
-"pvnet_summation" = "pvnet_summation"
-
-[project.optional-dependencies]
+[dependency-groups]
 dev=[
-    "black",
-    "flake8",
-    "isort",
+    "ruff",
     "mypy",
-    "pre-commit",
     "pytest",
     "pytest-cov",
 ]
-all=["PVNet[dev]"]
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[tool.setuptools.package-dir]
+"pvnet" = "pvnet"
 
 [tool.mypy]
 exclude = [
@@ -57,8 +62,7 @@ show_error_codes = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = [
-]
+module = []
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -70,4 +74,20 @@ testpaths = [
 
 [tool.ruff]
 line-length = 100
-exclude = [".ipynb_checkpoints", "tests", "configs.example"]
+exclude = ["tests"]
+target-version = "py310"
+
+[tool.ruff.lint]
+extend-select = ["E", "D", "I"]
+ignore = ["D200","D202","D210","D212","D415","D105"]
+
+[tool.ruff.lint.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings.
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402"]
