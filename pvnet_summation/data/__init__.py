@@ -1,2 +1,2 @@
 """Data module"""
-from .datamodule import StreamedDataModule, PresavedDataModule
+from .datamodule import PresavedDataModule, StreamedDataModule

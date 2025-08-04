@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pylab
 import torch
+
 import wandb
 from pvnet_summation.data.datamodule import SumTensorBatch
 
@@ -31,7 +32,7 @@ def plot_sample_forecasts(
 
     y = batch["target"].cpu().numpy()
     y_hat = y_hat.cpu().numpy()    
-    times_utc = pd.to_datetime(batch[f"valid_times"].cpu().numpy().astype("datetime64[ns]"))
+    times_utc = pd.to_datetime(batch["valid_times"].cpu().numpy().astype("datetime64[ns]"))
     batch_size = y.shape[0]
 
     fig, axes = plt.subplots(4, 4, figsize=(16, 16))

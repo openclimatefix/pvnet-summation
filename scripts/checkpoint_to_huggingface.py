@@ -14,10 +14,10 @@ from typing import Optional
 import hydra
 import torch
 import typer
-import wandb
 from pyaml_env import parse_config
 
 import pvnet_summation
+import wandb
 
 
 def push_to_huggingface(

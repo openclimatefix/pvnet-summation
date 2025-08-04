@@ -5,8 +5,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from pvnet_summation.models.base_model import BaseModel
 from pvnet_summation.data.datamodule import SumTensorBatch
+from pvnet_summation.models.base_model import BaseModel
 
 
 class DenseModel(BaseModel):

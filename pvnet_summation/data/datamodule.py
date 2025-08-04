@@ -1,18 +1,17 @@
 """Pytorch lightning datamodules for loading pre-saved samples and predictions."""
 
 from glob import glob
-import torch
-import pandas as pd
-import numpy as np
-from torch.utils.data import Dataset, DataLoader, default_collate
 from typing import TypeAlias
+
+import numpy as np
+import pandas as pd
+import torch
 from lightning.pytorch import LightningDataModule
 from ocf_data_sampler.load.gsp import open_gsp
-from ocf_data_sampler.numpy_sample.common_types import TensorBatch, NumpyBatch
+from ocf_data_sampler.numpy_sample.common_types import NumpyBatch, NumpySample, TensorBatch
 from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
-import xarray as xr
-from torch.utils.data import DataLoader, Dataset
 from ocf_data_sampler.utils import minutes
+from torch.utils.data import DataLoader, Dataset, default_collate
 from typing_extensions import override
 
 SumNumpySample: TypeAlias = dict[str, np.ndarray | NumpyBatch]
@@ -20,25 +19,23 @@ SumTensorSample: TypeAlias = dict[str, torch.Tensor | TensorBatch]
 SumTensorBatch: TypeAlias = dict[str, torch.Tensor | list[TensorBatch]]
 
 
-
 class StreamedDataset(PVNetUKConcurrentDataset):
+    """A torch dataset for creating concurrent PVNet inputs and national targets."""
 
     def __init__(
         self,
         config_filename: str,
         start_time: str | None = None,
         end_time: str | None = None,
-        gsp_ids: list[int] | None = None,
     ) -> None:
-        """A torch Dataset for creating PVNet UK samples.
+        """A torch dataset for creating concurrent PVNet inputs and national targets.
 
         Args:
             config_filename: Path to the configuration file
             start_time: Limit the init-times to be after this
             end_time: Limit the init-times to be before this
-            gsp_ids: List of GSP IDs used in the PVNet concurrent samples
         """
-        super().__init__(config_filename, start_time, end_time, gsp_ids)
+        super().__init__(config_filename, start_time, end_time, gsp_ids=None)
 
         # Load and nornmalise the national GSP data to use as target values
         national_gsp_data = (
@@ -108,7 +105,7 @@ class StreamedDataModule(LightningDataModule):
         prefetch_factor: int | None = None,
         persistent_workers: bool = False,
     ):
-        """Datamodule for training pvnet_summation.
+        """Datamodule for creating concurrent PVNet inputs and national targets.
 
         Args:
             configuration: Path to ocf-data-sampler configuration file.
@@ -150,7 +147,14 @@ class StreamedDataModule(LightningDataModule):
 
 
 class PresavedDataset(Dataset):
+    """Dataset for loading pre-saved PVNet predictions from disk"""
+
     def __init__(self, sample_dir: str):
+        """"Dataset for loading pre-saved PVNet predictions from disk.
+        
+        Args:
+            sample_dir: The directory containing the saved samples
+        """
         self.sample_filepaths = sorted(glob(f"{sample_dir}/*.pt"))
 
     def __len__(self) -> int:
@@ -161,7 +165,7 @@ class PresavedDataset(Dataset):
 
 
 class PresavedDataModule(LightningDataModule):
-    """Datamodule for loading pre-saved PVNet predictions to train pvnet_summation."""
+    """Datamodule for loading pre-saved PVNet predictions."""
 
     def __init__(
         self,
@@ -171,10 +175,10 @@ class PresavedDataModule(LightningDataModule):
         prefetch_factor: int | None = None,
         persistent_workers: bool = False,
     ):
-        """Datamodule for loading pre-saved PVNet predictions to train pvnet_summation.
+        """Datamodule for loading pre-saved PVNet predictions.
 
         Args:
-            sample_dir: Path to the directory of pre-saved batches.
+            sample_dir: Path to the directory of pre-saved samples.
             batch_size: Batch size.
             num_workers: Number of workers to use in multiprocess batch loading.
             prefetch_factor: Number of data will be prefetched at the end of each worker process.

@@ -1,24 +1,19 @@
 """Training"""
 import logging
 import os
-import torch
-from tqdm import tqdm
-
 
 import hydra
+import torch
 from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import Logger, WandbLogger
+from ocf_data_sampler.torch_datasets.sample.base import batch_to_tensor, copy_batch_to_device
 from omegaconf import DictConfig, OmegaConf
-from ocf_data_sampler.torch_datasets.sample.base import copy_batch_to_device, batch_to_tensor
-
 from pvnet.models import BaseModel as PVNetBaseModel
+from tqdm import tqdm
 
+from pvnet_summation.data.datamodule import PresavedDataModule, StreamedDataModule
 from pvnet_summation.utils import MODEL_CONFIG_NAME
-
-from pvnet_summation.data.datamodule import StreamedDataModule, PresavedDataModule
-
-
 
 log = logging.getLogger(__name__)
 

@@ -12,8 +12,8 @@ import yaml
 from huggingface_hub import ModelCard, ModelCardData, snapshot_download
 from huggingface_hub.hf_api import HfApi
 from safetensors.torch import load_file, save_file
-from pvnet_summation.data.datamodule import SumTensorBatch
 
+from pvnet_summation.data.datamodule import SumTensorBatch
 from pvnet_summation.utils import (
     DATAMODULE_CONFIG_NAME,
     FULL_CONFIG_NAME,

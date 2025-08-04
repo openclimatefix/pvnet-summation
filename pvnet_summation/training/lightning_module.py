@@ -3,14 +3,12 @@
 import lightning.pytorch as pl
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn.functional as F
-import wandb
-import xarray as xr
 from ocf_data_sampler.numpy_sample.common_types import TensorBatch
-
 from torch.utils.data import default_collate
+
+import wandb
 from pvnet_summation.models.base_model import BaseModel
 from pvnet_summation.optimizers import AbstractOptimizer
 from pvnet_summation.training.plots import plot_sample_forecasts, wandb_line_plot
