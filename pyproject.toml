@@ -13,6 +13,7 @@ requires-python = ">=3.10"
 
 
 dependencies = [
+    "pvnet",
     "ocf-data-sampler>=0.2.32",
     "numpy",
     "pandas",
@@ -46,7 +47,7 @@ dev=[
 enabled = true
 
 [tool.setuptools.package-dir]
-"pvnet" = "pvnet"
+"pvnet_summation" = "pvnet_summation"
 
 [tool.mypy]
 exclude = [

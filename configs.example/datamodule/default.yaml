@@ -1,6 +1,9 @@
-_target_: pvnet_summation.data.datamodule.SavedSampleDataModule
-sample_dir: "PLACEHOLDER"
-gsp_zarr_path: "PLACEHOLDER"
+configuration: PLACEHOLDER
 batch_size: 32
 num_workers: 20
 prefetch_factor: 2
+
+
+# Set these to integers to limit the number of train/val samples precomputed and saved
+max_num_train_samples: null
+max_num_val_samples: null

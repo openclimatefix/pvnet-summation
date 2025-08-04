@@ -8,16 +8,16 @@ from torch.utils.data import Dataset, DataLoader, default_collate
 from typing import TypeAlias
 from lightning.pytorch import LightningDataModule
 from ocf_data_sampler.load.gsp import open_gsp
-from ocf_data_sampler.numpy_sample.common_types import TensorBatch, NumpyBatch
+from ocf_data_sampler.numpy_sample.common_types import NumpyBatch
 from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
 import xarray as xr
 from torch.utils.data import DataLoader, Dataset
 from ocf_data_sampler.utils import minutes
 from typing_extensions import override
 
+
 SumNumpySample: TypeAlias = dict[str, np.ndarray | NumpyBatch]
-SumTensorSample: TypeAlias = dict[str, torch.Tensor | TensorBatch]
-SumTensorBatch: TypeAlias = dict[str, torch.Tensor | list[TensorBatch]]
+SumTensorBatch: TypeAlias = dict[str, torch.Tensor]
 
 
 
@@ -28,7 +28,6 @@ class StreamedDataset(PVNetUKConcurrentDataset):
         config_filename: str,
         start_time: str | None = None,
         end_time: str | None = None,
-        gsp_ids: list[int] | None = None,
     ) -> None:
         """A torch Dataset for creating PVNet UK samples.
 
@@ -36,9 +35,8 @@ class StreamedDataset(PVNetUKConcurrentDataset):
             config_filename: Path to the configuration file
             start_time: Limit the init-times to be after this
             end_time: Limit the init-times to be before this
-            gsp_ids: List of GSP IDs used in the PVNet concurrent samples
         """
-        super().__init__(config_filename, start_time, end_time, gsp_ids)
+        super().__init__(config_filename, start_time, end_time, gsp_ids=None)
 
         # Load and nornmalise the national GSP data to use as target values
         national_gsp_data = (
@@ -49,7 +47,7 @@ class StreamedDataset(PVNetUKConcurrentDataset):
             .sel(gsp_id=0)
             .compute()
         )
-        self.national_gsp_data = national_gsp_data / national_gsp_data.effective_capacity_mwp
+        self.national_gsp_data = national_gsp_data / national_gsp_data.relative_capacity_mwp
 
 
     def _get_sample(self, t0: pd.Timestamp) -> SumNumpySample:
@@ -61,7 +59,7 @@ class StreamedDataset(PVNetUKConcurrentDataset):
 
         pvnet_inputs: NumpySample = super()._get_sample(t0)
 
-        location_capacities = pvnet_inputs["gsp_effective_capacity_mwp"]
+        location_capacities = pvnet_inputs["gsp_relative_capacity_mwp"]
 
         valid_times = pd.date_range(
             t0+minutes(self.config.input_data.gsp.time_resolution_minutes), 
@@ -70,20 +68,20 @@ class StreamedDataset(PVNetUKConcurrentDataset):
         )
 
         total_outturns = self.national_gsp_data.sel(time_utc=valid_times).values
-        total_capacity = self.national_gsp_data.sel(time_utc=t0).effective_capacity_mwp.item()
+        total_capacity = self.national_gsp_data.sel(time_utc=t0).relative_capacity_mwp.item()
 
         relative_capacities = location_capacities / total_capacity
 
         return {
             # NumpyBatch object with batch size = num_locations
             "pvnet_inputs": pvnet_inputs,
-            # Shape: [time]
+            # Shape: [time,]
             "target": total_outturns,
-            # Shape: [time]
+            # Shape: [time,]
             "valid_times": valid_times.values.astype(int),
             # Shape: 
             "last_outturn": self.national_gsp_data.sel(time_utc=t0).values,
-            # Shape: [num_locations]
+            # Shape: [num_locations,]
             "relative_capacity": relative_capacities,
         }
 

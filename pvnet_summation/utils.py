@@ -1,64 +1,88 @@
 """Utils"""
+import logging
 
-import matplotlib.pyplot as plt
-import pandas as pd
-import pylab
+import rich.syntax
+import rich.tree
+from lightning.pytorch.utilities import rank_zero_only
+from omegaconf import DictConfig, OmegaConf
+
+logger = logging.getLogger(__name__)
 
 
-def plot_forecasts(y, y_hat, times, batch_idx=None, quantiles=None, y_sum=None):
-    """Plot a batch of data and the forecast from that batch"""
+PYTORCH_WEIGHTS_NAME = "model_weights.safetensors"
+MODEL_CONFIG_NAME = "model_config.yaml"
+DATA_CONFIG_NAME = "data_config.yaml"
+DATAMODULE_CONFIG_NAME = "datamodule_config.yaml"
+FULL_CONFIG_NAME =  "full_experiment_config.yaml"
+MODEL_CARD_NAME = "README.md"
 
-    times_utc = times.cpu().numpy().squeeze().astype("datetime64[ns]")
-    times_utc = [pd.to_datetime(t) for t in times_utc]
-    y = y.cpu().numpy()
-    y_hat = y_hat.cpu().numpy()
-    y_sum = y_sum.cpu().numpy() if (y_sum is not None) else None
 
-    batch_size = y.shape[0]
 
-    fig, axes = plt.subplots(4, 4, figsize=(16, 16))
+def run_config_utilities(config: DictConfig) -> None:
+    """A couple of optional utilities.
 
-    for i, ax in enumerate(axes.ravel()):
-        if i >= batch_size:
-            ax.axis("off")
-            continue
+    Controlled by main config file:
+    - forcing debug friendly configuration
 
-        ax.plot(times_utc[i], y[i], marker=".", color="k", label=r"$y$")
+    Modifies DictConfig in place.
 
-        if y_sum is not None:
-            ax.plot(
-                times_utc[i], y_sum[i], marker=".", linestyle="--", color="0.5", label=r"$y_{sum}$"
-            )
+    Args:
+        config (DictConfig): Configuration composed by Hydra.
+    """
 
-        if quantiles is None:
-            ax.plot(times_utc[i], y_hat[i], marker=".", color="r", label=r"$\hat{y}$")
-        else:
-            cm = pylab.get_cmap("twilight")
-            for nq, q in enumerate(quantiles):
-                ax.plot(
-                    times_utc[i],
-                    y_hat[i, :, nq],
-                    color=cm(q),
-                    label=r"$\hat{y}$" + f"({q})",
-                    alpha=0.7,
-                )
+    # Enable adding new keys to config
+    OmegaConf.set_struct(config, False)
 
-        ax.set_title(f"{times_utc[i][0].date()}", fontsize="small")
+    # Force debugger friendly configuration if <config.trainer.fast_dev_run=True>
+    if config.trainer.get("fast_dev_run"):
+        logger.info("Forcing debugger friendly configuration! <config.trainer.fast_dev_run=True>")
+        # Debuggers don't like GPUs or multiprocessing
+        if config.trainer.get("gpus"):
+            config.trainer.gpus = 0
+        if config.datamodule.get("pin_memory"):
+            config.datamodule.pin_memory = False
+        if config.datamodule.get("num_workers"):
+            config.datamodule.num_workers = 0
+        if config.datamodule.get("prefetch_factor"):
+            config.datamodule.prefetch_factor = None
 
-        xticks = [t for t in times_utc[i] if t.minute == 0][::2]
-        ax.set_xticks(ticks=xticks, labels=[f"{t.hour:02}" for t in xticks], rotation=90)
-        ax.grid()
+    # Disable adding new keys to config
+    OmegaConf.set_struct(config, True)
 
-    axes[0, 0].legend(loc="best")
 
-    for ax in axes[-1, :]:
-        ax.set_xlabel("Time (hour of day)")
+@rank_zero_only
+def print_config(
+    config: DictConfig,
+    fields: tuple[str] = (
+        "trainer",
+        "model",
+        "datamodule",
+        "callbacks",
+        "logger",
+        "seed",
+    ),
+    resolve: bool = True,
+) -> None:
+    """Prints content of DictConfig using Rich library and its tree structure.
 
-    if batch_idx is not None:
-        title = f"Normed National output : batch_idx={batch_idx}"
-    else:
-        title = "Normed National output"
-    plt.suptitle(title)
-    plt.tight_layout()
+    Args:
+        config (DictConfig): Configuration composed by Hydra.
+        fields (Sequence[str], optional): Determines which main fields from config will
+        be printed and in what order.
+        resolve (bool, optional): Whether to resolve reference fields of DictConfig.
+    """
 
-    return fig
+    style = "dim"
+    tree = rich.tree.Tree("CONFIG", style=style, guide_style=style)
+
+    for field in fields:
+        branch = tree.add(field, style=style, guide_style=style)
+
+        config_section = config.get(field)
+        branch_content = str(config_section)
+        if isinstance(config_section, DictConfig):
+            branch_content = OmegaConf.to_yaml(config_section, resolve=resolve)
+
+        branch.add(rich.syntax.Syntax(branch_content, "yaml"))
+
+    rich.print(tree)

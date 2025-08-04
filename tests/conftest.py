@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from ocf_data_sampler.config import load_yaml_configuration, save_yaml_configuration
 from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
 
-from pvnet_summation.models.flat_model import FlatModel
+from pvnet_summation.models.dense_model import DenseModel
 from pvnet_summation.data.datamodule import SavedSampleDataset, SavedSampleDataModule
 
 
@@ -252,7 +252,7 @@ def flat_model_kwargs(saved_pvnet_model_path):
 
 @pytest.fixture(scope="session")
 def model(flat_model_kwargs):
-    return FlatModel(**flat_model_kwargs)
+    return DenseModel(**flat_model_kwargs)
 
 
 @pytest.fixture(scope="session")

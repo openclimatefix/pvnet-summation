@@ -1,4 +1,4 @@
-_target_: pvnet_summation.models.flat_model.FlatModel
+_target_: pvnet_summation.models.flat_model.DenseModel
 
 output_quantiles: null
 
@@ -10,7 +10,7 @@ model_version: "898630f3f8cd4e8506525d813dd61c6d8de86144"
 #--------------------------------------------
 
 output_network:
-  _target_: pvnet.models.multimodal.linear_networks.networks.ResFCNet2
+  _target_: pvnet.models.late_fusion.linear_networks.networks.ResFCNet
   _partial_: True
   fc_hidden_features: 128
   n_res_blocks: 2
@@ -22,7 +22,7 @@ predict_difference_from_sum: False
 # ----------------------------------------------
 
 optimizer:
-  _target_: pvnet.optimizers.AdamWReduceLROnPlateau
+  _target_: pvnet_summation.optimizers.AdamWReduceLROnPlateau
   lr: 0.0001
   weight_decay: 0.25
   amsgrad: True
