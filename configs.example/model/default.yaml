@@ -1,31 +1,32 @@
-_target_: pvnet_summation.models.flat_model.DenseModel
+_target_: pvnet_summation.training.lightning_module.PVNetSummationLightningModule
 
-output_quantiles: null
+model:
+  _target_: pvnet_summation.models.dense_model.DenseModel
 
-model_name: "openclimatefix/pvnet_v2"
-model_version: "898630f3f8cd4e8506525d813dd61c6d8de86144"
+  output_quantiles: [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98]
 
-#--------------------------------------------
-# Tabular network settings
-#--------------------------------------------
 
-output_network:
-  _target_: pvnet.models.late_fusion.linear_networks.networks.ResFCNet
-  _partial_: True
-  fc_hidden_features: 128
-  n_res_blocks: 2
-  res_block_layers: 2
-  dropout_frac: 0.0
+  #--------------------------------------------
+  # Summation network architecture
+  #--------------------------------------------
 
-predict_difference_from_sum: False
+  output_network:
+    _target_: pvnet.models.late_fusion.linear_networks.networks.ResFCNet
+    _partial_: True
+    fc_hidden_features: 128
+    n_res_blocks: 2
+    res_block_layers: 2
+    dropout_frac: 0.1
 
-# ----------------------------------------------
+  predict_difference_from_sum: True
+
+  # ----------------------------------------------
 
 optimizer:
   _target_: pvnet_summation.optimizers.AdamWReduceLROnPlateau
   lr: 0.0001
   weight_decay: 0.25
   amsgrad: True
-  patience: 20
+  patience: 10
   factor: 0.1
   threshold: 0.00

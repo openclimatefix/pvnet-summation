@@ -2,8 +2,19 @@ configuration: PLACEHOLDER
 batch_size: 32
 num_workers: 20
 prefetch_factor: 2
-
+persistent_workers:  true
 
 # Set these to integers to limit the number of train/val samples precomputed and saved
 max_num_train_samples: null
 max_num_val_samples: null
+
+pvnet_model:
+    model_id: null
+    revision: null
+
+train_period:
+    - null
+    - '2021-12-31'
+val_period:
+    - '2022-01-01'
+    - '2022-12-31'

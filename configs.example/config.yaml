@@ -10,7 +10,7 @@ defaults:
   - hydra: default.yaml
 
 # Before training, the samples are run through PVNet. The samples are saved under this directory
-sample_save_dir: /home/jamesfulton/repos/PVNet_summation/presaved_saved_samples
+sample_save_dir: PLACEHOLDER
 
 work_dir: ${hydra:runtime.cwd}
 
