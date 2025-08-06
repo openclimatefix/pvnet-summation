@@ -205,6 +205,7 @@ def pvnet_model_config() -> dict:
     model_config_path = f"{_top_test_directory}/test_data/pvnet_model_config.yaml"
     with open(model_config_path, "r") as stream:
         model_config = yaml.safe_load(stream)
+    model_config["location_id_mapping"] = {i:i for i in range(1, 318)}
     return model_config
 
 
@@ -215,7 +216,6 @@ def presaved_samples_dir(session_tmp_path, data_config_path, pvnet_model_config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Create a PVNet model
-    pvnet_model_config["location_id_mapping"] = {i:i for i in range(1, 318)}
     pvnet_model = hydra.utils.instantiate(pvnet_model_config)
     pvnet_model.to(device).requires_grad_(False)
 
@@ -254,8 +254,8 @@ def presaved_samples_dir(session_tmp_path, data_config_path, pvnet_model_config)
 
 
 @pytest.fixture()
-def model_kwargs(pvnet_model_config) -> dict:
-    kwargs = dict(
+def raw_model_kwargs(pvnet_model_config) -> dict:
+    return dict(
         output_network = dict(
             _target_ = "pvnet.models.late_fusion.linear_networks.networks.ResFCNet",
             _partial_ = True,
@@ -272,7 +272,10 @@ def model_kwargs(pvnet_model_config) -> dict:
         input_quantiles = pvnet_model_config["output_quantiles"],
     )
 
-    return hydra.utils.instantiate(kwargs)
+
+@pytest.fixture()
+def model_kwargs(raw_model_kwargs) -> dict:
+    return hydra.utils.instantiate(raw_model_kwargs)
 
 
 @pytest.fixture()

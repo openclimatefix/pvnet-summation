@@ -124,7 +124,7 @@ class HuggingfaceMixin:
         save_directory: str,
         model_config: dict,
         wandb_repo: str,
-        wandb_ids: list[str] | str,
+        wandb_id: str,
         card_template_path: str,
         datamodule_config_path: str | None = None,
         experiment_config_path: str | None = None,
@@ -160,7 +160,7 @@ class HuggingfaceMixin:
         # Save model weights/files
         self._save_model_weights(save_directory)
 
-        # Save the model config and data config
+        # Save the model config
         if isinstance(model_config, dict):
             with open(save_directory / MODEL_CONFIG_NAME, "w") as outfile:
                 yaml.dump(model_config, outfile, sort_keys=False, default_flow_style=False)
@@ -173,7 +173,7 @@ class HuggingfaceMixin:
         if experiment_config_path is not None:
             shutil.copyfile(experiment_config_path, save_directory / FULL_CONFIG_NAME)
 
-        card = self.create_hugging_face_model_card(card_template_path, wandb_repo, wandb_ids)
+        card = self.create_hugging_face_model_card(card_template_path, wandb_repo, wandb_id)
 
         (save_directory / MODEL_CARD_NAME).write_text(str(card))
 
@@ -184,7 +184,7 @@ class HuggingfaceMixin:
                 repo_id=hf_repo_id,
                 folder_path=save_directory,
                 repo_type="model",
-                commit_message=f"Upload models - {wandb_ids}",
+                commit_message=f"Upload model - {wandb_id}",
             )
 
             # Print the most recent commit hash
@@ -204,7 +204,7 @@ class HuggingfaceMixin:
     def create_hugging_face_model_card(
         card_template_path: str,
         wandb_repo: str,
-        wandb_ids: list[str] | str,
+        wandb_id: str,
     ) -> ModelCard:
         """
         Creates Hugging Face model card
@@ -212,7 +212,7 @@ class HuggingfaceMixin:
         Args:
             card_template_path: Path to the HuggingFace model card template
             wandb_repo: Identifier of the repo on wandb.
-            wandb_ids: Identifier(s) of the model on wandb.
+            wandb_id: Identifier of the model on wandb.
 
         Returns:
             card: ModelCard - Hugging Face model card object
@@ -221,13 +221,8 @@ class HuggingfaceMixin:
         # Creating and saving model card.
         card_data = ModelCardData(language="en", license="mit", library_name="pytorch")
 
-        if isinstance(wandb_ids, str):
-            wandb_ids = [wandb_ids]
-
-        wandb_links = ""
-        for wandb_id in wandb_ids:
-            link = f"https://wandb.ai/{wandb_repo}/runs/{wandb_id}"
-            wandb_links += f" - [{link}]({link})\n"
+        link = f"https://wandb.ai/{wandb_repo}/runs/{wandb_id}"
+        wandb_link = f" - [{link}]({link})\n"
 
         # Find package versions for OCF packages
         packages_to_display = ["pvnet_summation", "ocf-data-sampler"]
@@ -241,7 +236,7 @@ class HuggingfaceMixin:
         return ModelCard.from_template(
             card_data,
             template_path=card_template_path,
-            wandb_links=wandb_links,
+            wandb_link=wandb_link,
             package_versions=package_versions_markdown,
         )
 

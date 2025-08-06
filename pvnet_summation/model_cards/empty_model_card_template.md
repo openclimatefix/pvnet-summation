@@ -40,7 +40,7 @@ Data is prepared with the `ocf_data_sampler/torch_datasets/datasets/pvnet_uk` Da
 
 <!-- Do not remove the lines below -->
 The training logs for this model commit can be found here:
-{{ wandb_links }}
+{{ wandb_link }}
 
 <!-- The hardware section is also just nice to have -->
 ### Hardware
