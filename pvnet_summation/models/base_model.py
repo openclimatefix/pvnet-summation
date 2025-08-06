@@ -139,7 +139,7 @@ class HuggingfaceMixin:
             model_config (`dict`):
                 Model configuration specified as a key/value dictionary.
             wandb_repo: Identifier of the repo on wandb.
-            wandb_ids: Identifier(s) of the model on wandb.
+            wandb_id: Identifier of the model on wandb.
             datamodule_config_path:
                 The path to the datamodule config.
             experiment_config_path:

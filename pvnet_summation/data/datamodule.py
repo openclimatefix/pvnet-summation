@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from lightning.pytorch import LightningDataModule
 from ocf_data_sampler.load.gsp import open_gsp
-from ocf_data_sampler.numpy_sample.common_types import NumpyBatch, NumpySample, TensorBatch
+from ocf_data_sampler.numpy_sample.common_types import NumpyBatch, NumpySample
 from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
 from ocf_data_sampler.utils import minutes
 from torch.utils.data import DataLoader, Dataset, default_collate
