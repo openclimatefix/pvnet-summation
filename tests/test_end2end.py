@@ -1,19 +1,22 @@
 import lightning
-import pytest
+from pvnet_summation.data.datamodule import PresavedDataModule
+from pvnet_summation.training.lightning_module import PVNetSummationLightningModule
+from pvnet_summation.optimizers import AdamW
 
-from pvnet_summation.data.datamodule import SavedPredictionDataModule
 
+def test_model_trainer_fit(model, presaved_samples_dir):
 
-@pytest.fixture()
-def saved_prediction_datamodule(presaved_predictions_dir):
-    return SavedPredictionDataModule(
-        sample_dir=presaved_predictions_dir,
+    datamodule = PresavedDataModule(
+        sample_dir=presaved_samples_dir,
         batch_size=2,
         num_workers=0,
         prefetch_factor=None,
     )
 
+    model_module = PVNetSummationLightningModule(
+        model=model,
+        optimizer=AdamW()
+    )
 
-def test_model_trainer_fit(model, saved_prediction_datamodule):
     trainer = lightning.pytorch.trainer.trainer.Trainer(fast_dev_run=True)
-    trainer.fit(model=model, datamodule=saved_prediction_datamodule)
+    trainer.fit(model=model_module, datamodule=datamodule)

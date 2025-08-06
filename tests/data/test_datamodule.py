@@ -1,56 +1,21 @@
-from pvnet_summation.data.datamodule import (
-    SavedSampleDataset,
-    SavedSampleDataModule,
-    SavedPredictionDataset,
-    SavedPredictionDataModule,
-)
+from pvnet_summation.data.datamodule import StreamedDataset, PresavedDataset
 
 
-def test_saved_sample_dataset(presaved_samples_dir, uk_gsp_zarr_path, num_samples):
-    dataset = SavedSampleDataset(
-        sample_dir=f"{presaved_samples_dir}/train", gsp_zarr_path=uk_gsp_zarr_path
-    )
-    assert len(dataset) == num_samples
-
+def test_streameddataset(data_config_path):
+    dataset = StreamedDataset(config_filename=data_config_path)
     sample = dataset[0]
-    assert isinstance(sample, dict)
 
-
-def test_saved_sample_datamodule(presaved_samples_dir, uk_gsp_zarr_path, num_samples):
-    batch_size = 2
-    datamodule = SavedSampleDataModule(
-        sample_dir=presaved_samples_dir,
-        gsp_zarr_path=uk_gsp_zarr_path,
-        batch_size=2,
-        num_workers=0,
-        prefetch_factor=None,
+    expected_keys = set(
+        ["pvnet_inputs", "target", "valid_times", "last_outturn", "relative_capacity",]
     )
-
-    dataloader = datamodule.train_dataloader()
-    assert len(dataloader) == num_samples / batch_size
-
-    batch = next(iter(dataloader))
-    assert isinstance(batch, dict)
+    assert set(sample.keys())==expected_keys
 
 
-def test_saved_prediction_dataset(presaved_predictions_dir, num_samples):
-    dataset = SavedPredictionDataset(sample_dir=f"{presaved_predictions_dir}/train")
-    assert len(dataset) == num_samples
-
+def test_presaveddataset(presaved_samples_dir):
+    dataset = PresavedDataset(sample_dir=f"{presaved_samples_dir}/train")
     sample = dataset[0]
-    assert isinstance(sample, dict)
 
-
-def test_saved_prediction_datamodule(presaved_predictions_dir, num_samples):
-    batch_size = 2
-    datamodule = SavedPredictionDataModule(
-        sample_dir=presaved_predictions_dir,
-        batch_size=batch_size,
-        num_workers=0,
-        prefetch_factor=None,
+    expected_keys = set(
+        ["pvnet_outputs", "target", "valid_times", "last_outturn", "relative_capacity",]
     )
-    dataloader = datamodule.train_dataloader()
-    assert len(dataloader) == num_samples / batch_size
-
-    batch = next(iter(dataloader))
-    assert isinstance(batch, dict)
+    assert set(sample.keys())==expected_keys

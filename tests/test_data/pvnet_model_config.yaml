@@ -1,6 +1,21 @@
-_target_: pvnet.models.multimodal.multimodal.Model
+_target_: pvnet.models.LateFusionModel
 
 output_quantiles: [0.1, 0.5, 0.9]
+
+
+#--------------------------------------------
+# Sat encoder settings
+#--------------------------------------------
+
+sat_encoder:
+  _target_: pvnet.models.late_fusion.encoders.encoders3d.DefaultPVNet
+  _partial_: True
+  in_channels: 11
+  out_features: 8
+  image_size_pixels: 24
+  number_of_conv3d_layers: 1
+  conv3d_channels: 2
+
 
 #--------------------------------------------
 # NWP encoder
@@ -8,26 +23,23 @@ output_quantiles: [0.1, 0.5, 0.9]
 
 nwp_encoders_dict:
   ukv:
-    _target_: pvnet.models.multimodal.encoders.encoders3d.DefaultPVNet
+    _target_: pvnet.models.late_fusion.encoders.encoders3d.DefaultPVNet
     _partial_: True
-    in_channels: 1
+    in_channels: 4
     out_features: 8
-    image_size_pixels: 4
+    image_size_pixels: 24
     number_of_conv3d_layers: 1
     conv3d_channels: 2
 
-#--------------------------------------------
-# Sat encoder settings
-#--------------------------------------------
+  ecmwf:
+    _target_: pvnet.models.late_fusion.encoders.encoders3d.DefaultPVNet
+    _partial_: True
+    in_channels: 3
+    out_features: 8
+    image_size_pixels: 12
+    number_of_conv3d_layers: 1
+    conv3d_channels: 2
 
-sat_encoder:
-  _target_: pvnet.models.multimodal.encoders.encoders3d.DefaultPVNet
-  _partial_: True
-  in_channels: 1
-  out_features: 8
-  image_size_pixels: 4
-  number_of_conv3d_layers: 1
-  conv3d_channels: 2
 
 add_image_embedding_channel: False
 
@@ -36,7 +48,7 @@ add_image_embedding_channel: False
 #--------------------------------------------
 
 output_network:
-  _target_: pvnet.models.multimodal.linear_networks.networks.ResFCNet2
+  _target_: pvnet.models.late_fusion.linear_networks.networks.ResFCNet
   _partial_: True
   fc_hidden_features: 8
   n_res_blocks: 2
@@ -52,8 +64,9 @@ include_gsp_yield_history: False
 #--------------------------------------------
 
 # Foreast and time settings
-forecast_minutes: 120
 history_minutes: 60
+forecast_minutes: 480
+interval_minutes: 30
 
 min_sat_delay_minutes: 0
 
@@ -62,19 +75,9 @@ sat_history_minutes: 30
 
 # These must be set for each NWP encoder
 nwp_history_minutes:
-  ukv: 60
+  ukv: 120
+  ecmwf: 120
 
 nwp_forecast_minutes:
-  ukv: 120
-
-# ----------------------------------------------
-# Optimizer
-# ----------------------------------------------
-optimizer:
-  _target_: pvnet.optimizers.EmbAdamWReduceLROnPlateau
-  lr: 0.0001
-  weight_decay: 0.01
-  amsgrad: True
-  patience: 10
-  factor: 0.1
-  threshold: 0.002
+  ukv: 480
+  ecmwf: 480

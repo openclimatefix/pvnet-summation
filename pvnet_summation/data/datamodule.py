@@ -15,8 +15,7 @@ from torch.utils.data import DataLoader, Dataset, default_collate
 from typing_extensions import override
 
 SumNumpySample: TypeAlias = dict[str, np.ndarray | NumpyBatch]
-SumTensorSample: TypeAlias = dict[str, torch.Tensor | TensorBatch]
-SumTensorBatch: TypeAlias = dict[str, torch.Tensor | list[TensorBatch]]
+SumTensorBatch: TypeAlias = dict[str, torch.Tensor]
 
 
 class StreamedDataset(PVNetUKConcurrentDataset):
