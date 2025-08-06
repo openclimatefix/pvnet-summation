@@ -21,8 +21,8 @@ python checkpoint_to_huggingface.py "path/to/model/checkpoints" \
 import tempfile
 
 import typer
-
 import wandb
+
 from pvnet_summation.load_model import get_model_from_checkpoints
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
