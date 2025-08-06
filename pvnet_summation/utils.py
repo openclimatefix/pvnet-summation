@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 PYTORCH_WEIGHTS_NAME = "model_weights.safetensors"
 MODEL_CONFIG_NAME = "model_config.yaml"
-DATA_CONFIG_NAME = "data_config.yaml"
 DATAMODULE_CONFIG_NAME = "datamodule_config.yaml"
 FULL_CONFIG_NAME =  "full_experiment_config.yaml"
 MODEL_CARD_NAME = "README.md"
