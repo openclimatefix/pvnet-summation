@@ -23,6 +23,11 @@ from pvnet_summation.utils import (
 )
 
 
+def santize_datamodule(config: dict) -> dict:
+    """Create new datamodule config which only keeps the details required for inference"""
+    return {"pvnet_model": config["pvnet_model"]}
+
+
 def download_from_hf(
     repo_id: str,
     filename: str | list[str],
@@ -114,6 +119,32 @@ class HuggingfaceMixin:
         model.eval()  # type: ignore
 
         return model
+    
+    @classmethod
+    def get_datamodule_config(
+        cls,
+        model_id: str,
+        revision: str,
+        cache_dir: str | None = None,
+        force_download: bool = False,
+    ) -> str:
+        """Load data config file."""
+        if os.path.isdir(model_id):
+            print("Loading datamodule config from local directory")
+            datamodule_config_file = os.path.join(model_id, DATAMODULE_CONFIG_NAME)
+        else:
+            print("Loading datamodule config from huggingface repo")
+            datamodule_config_file = download_from_hf(
+                repo_id=model_id,
+                filename=DATAMODULE_CONFIG_NAME,
+                revision=revision,
+                cache_dir=cache_dir,
+                force_download=force_download,
+                max_retries=5,
+                wait_time=10,
+            )
+
+        return datamodule_config_file
 
     def _save_model_weights(self, save_directory: str) -> None:
         """Save weights from a Pytorch model to a local directory."""
@@ -126,7 +157,7 @@ class HuggingfaceMixin:
         wandb_repo: str,
         wandb_id: str,
         card_template_path: str,
-        datamodule_config_path: str | None = None,
+        datamodule_config_path,
         experiment_config_path: str | None = None,
         hf_repo_id: str | None = None,
         push_to_hub: bool = False,
@@ -142,6 +173,8 @@ class HuggingfaceMixin:
             wandb_id: Identifier of the model on wandb.
             datamodule_config_path:
                 The path to the datamodule config.
+            card_template_path: Path to the HuggingFace model card template. Defaults to card in
+                PVNet library if set to None.
             experiment_config_path:
                 The path to the full experimental config.
             hf_repo_id:
@@ -149,9 +182,6 @@ class HuggingfaceMixin:
                 the folder name if not provided.
             push_to_hub (`bool`, *optional*, defaults to `False`):
                 Whether or not to push your model to the HuggingFace Hub after saving it.
-
-            card_template_path: Path to the HuggingFace model card template. Defaults to card in
-                PVNet library if set to None.
         """
 
         save_directory = Path(save_directory)
@@ -165,9 +195,14 @@ class HuggingfaceMixin:
             with open(save_directory / MODEL_CONFIG_NAME, "w") as outfile:
                 yaml.dump(model_config, outfile, sort_keys=False, default_flow_style=False)
 
-        # Save the datamodule config
-        if datamodule_config_path is not None:
-            shutil.copyfile(datamodule_config_path, save_directory / DATAMODULE_CONFIG_NAME)
+        # Sanitize and save the datamodule config
+        with open(datamodule_config_path) as cfg:
+            datamodule_config = yaml.load(cfg, Loader=yaml.FullLoader)
+
+        datamodule_config = santize_datamodule(datamodule_config)
+
+        with open(save_directory / DATAMODULE_CONFIG_NAME, "w") as outfile:
+            yaml.dump(datamodule_config, outfile, sort_keys=False, default_flow_style=False)
         
         # Save the full experimental config
         if experiment_config_path is not None:

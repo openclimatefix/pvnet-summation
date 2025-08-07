@@ -13,7 +13,7 @@ from pvnet.models import BaseModel as PVNetBaseModel
 from tqdm import tqdm
 
 from pvnet_summation.data.datamodule import PresavedDataModule, StreamedDataModule
-from pvnet_summation.utils import MODEL_CONFIG_NAME
+from pvnet_summation.utils import MODEL_CONFIG_NAME, FULL_CONFIG_NAME, DATAMODULE_CONFIG_NAME
 
 log = logging.getLogger(__name__)
 
@@ -162,6 +162,14 @@ def train(config: DictConfig) -> None:
                 # Save the model config
                 os.makedirs(save_dir, exist_ok=True)
                 OmegaConf.save(config.model, f"{save_dir}/{MODEL_CONFIG_NAME}")
+
+                # Save the datamodule config
+                OmegaConf.save(config.datamodule, f"{save_dir}/{DATAMODULE_CONFIG_NAME}")
+
+                # Save the full hydra config to the output directory and to wandb
+                OmegaConf.save(config, f"{save_dir}/{FULL_CONFIG_NAME}")
+                wandb_logger.experiment.save(f"{save_dir}/{FULL_CONFIG_NAME}", base_path=save_dir)
+
 
     # Init lightning model
     model = hydra.utils.instantiate(config.model)
