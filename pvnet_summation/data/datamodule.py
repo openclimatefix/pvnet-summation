@@ -1,160 +1,170 @@
-"""Pytorch lightning datamodules for loading pre-saved samples and predictions.
-
-The pre-saced samplea can be prepared using the save_concurrent_samples.py script from the PVNet
-library: https://github.com/openclimatefix/PVNet
-"""
+"""Pytorch lightning datamodules for loading pre-saved samples and predictions."""
 
 from glob import glob
+from typing import TypeAlias
+
+import numpy as np
+import pandas as pd
 import torch
-from torch.utils.data import Dataset, DataLoader, default_collate
 from lightning.pytorch import LightningDataModule
 from ocf_data_sampler.load.gsp import open_gsp
+from ocf_data_sampler.numpy_sample.common_types import NumpyBatch, NumpySample
+from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
+from ocf_data_sampler.utils import minutes
+from torch.utils.data import DataLoader, Dataset, default_collate
+from typing_extensions import override
+
+SumNumpySample: TypeAlias = dict[str, np.ndarray | NumpyBatch]
+SumTensorBatch: TypeAlias = dict[str, torch.Tensor]
 
 
-# https://github.com/pytorch/pytorch/issues/973
-torch.multiprocessing.set_sharing_strategy("file_system")
+class StreamedDataset(PVNetUKConcurrentDataset):
+    """A torch dataset for creating concurrent PVNet inputs and national targets."""
 
+    def __init__(
+        self,
+        config_filename: str,
+        start_time: str | None = None,
+        end_time: str | None = None,
+    ) -> None:
+        """A torch dataset for creating concurrent PVNet inputs and national targets.
 
-def collate_summation_samples(samples: list[dict]) -> dict:
-    batch_dict = {}
-    batch_dict["pvnet_inputs"] = [s["pvnet_inputs"] for s in samples]
-    for key in ["effective_capacity", "national_targets", "times"]:
-        batch_dict[key] = torch.stack([s[key] for s in samples])
-    return batch_dict
-
-
-def get_national_outturns(gsp_data, times) -> torch.Tensor:
-    return torch.as_tensor(
-        gsp_data.sel(time_utc=times.cpu().numpy().astype("datetime64[ns]")).values
-    )
-
-
-def get_sample_valid_times(sample: dict) -> torch.Tensor:
-    id0 = int(sample["gsp_t0_idx"])
-    return sample["gsp_time_utc"][0, id0 + 1 :]
-
-
-def get_sample_capacities(sample: dict) -> torch.Tensor:
-    return sample["gsp_effective_capacity_mwp"].float().unsqueeze(-1)
-
-
-class SavedSampleDataset(Dataset):
-    def __init__(self, sample_dir: str, gsp_zarr_path: str, gsp_boundaries_version="20220314"):
-        self.sample_filepaths = glob(f"{sample_dir}/*.pt")
+        Args:
+            config_filename: Path to the configuration file
+            start_time: Limit the init-times to be after this
+            end_time: Limit the init-times to be before this
+        """
+        super().__init__(config_filename, start_time, end_time, gsp_ids=None)
 
         # Load and nornmalise the national GSP data to use as target values
-        gsp_data = (
-            open_gsp(zarr_path=gsp_zarr_path, boundaries_version=gsp_boundaries_version)
+        national_gsp_data = (
+            open_gsp(
+                zarr_path=self.config.input_data.gsp.zarr_path, 
+                boundaries_version=self.config.input_data.gsp.boundaries_version
+            )
             .sel(gsp_id=0)
             .compute()
         )
-        gsp_data = gsp_data / gsp_data.effective_capacity_mwp
+        self.national_gsp_data = national_gsp_data / national_gsp_data.effective_capacity_mwp
 
-        self.gsp_data = gsp_data
 
-    def __len__(self) -> int:
-        return len(self.sample_filepaths)
+    def _get_sample(self, t0: pd.Timestamp) -> SumNumpySample:
+        """Generate a concurrent PVNet sample for given init-time.
 
-    def __getitem__(self, idx) -> dict:
-        sample = torch.load(self.sample_filepaths[idx], weights_only=False)
+        Args:
+            t0: init-time for sample
+        """
 
-        sample_valid_times = get_sample_valid_times(sample)
+        pvnet_inputs: NumpySample = super()._get_sample(t0)
 
-        national_outturns = get_national_outturns(self.gsp_data, sample_valid_times)
+        location_capacities = pvnet_inputs["gsp_effective_capacity_mwp"]
 
-        national_capacity = get_national_outturns(
-            self.gsp_data.effective_capacity_mwp, sample_valid_times
-        )[0]
-
-        gsp_capacities = get_sample_capacities(sample)
-
-        gsp_relative_capacities = gsp_capacities / national_capacity
-
-        return dict(
-            pvnet_inputs=sample,
-            effective_capacity=gsp_relative_capacities,
-            national_targets=national_outturns,
-            times=sample_valid_times,
+        valid_times = pd.date_range(
+            t0+minutes(self.config.input_data.gsp.time_resolution_minutes), 
+            t0+minutes(self.config.input_data.gsp.interval_end_minutes),
+            freq=minutes(self.config.input_data.gsp.time_resolution_minutes)
         )
 
+        total_outturns = self.national_gsp_data.sel(time_utc=valid_times).values
+        total_capacity = self.national_gsp_data.sel(time_utc=t0).effective_capacity_mwp.item()
 
-class SavedSampleDataModule(LightningDataModule):
+        relative_capacities = location_capacities / total_capacity
+
+        return {
+            # NumpyBatch object with batch size = num_locations
+            "pvnet_inputs": pvnet_inputs,
+            # Shape: [time]
+            "target": total_outturns,
+            # Shape: [time]
+            "valid_times": valid_times.values.astype(int),
+            # Shape: 
+            "last_outturn": self.national_gsp_data.sel(time_utc=t0).values,
+            # Shape: [num_locations]
+            "relative_capacity": relative_capacities,
+        }
+
+    @override
+    def __getitem__(self, idx: int) -> SumNumpySample:
+        return super().__getitem__(idx)
+
+    @override
+    def get_sample(self, t0: pd.Timestamp) -> SumNumpySample:
+        return super().get_sample(t0)
+
+
+class StreamedDataModule(LightningDataModule):
     """Datamodule for training pvnet_summation."""
 
     def __init__(
         self,
-        sample_dir: str,
-        gsp_zarr_path: str,
-        gsp_boundaries_version: str = "20220314",
-        batch_size: int = 16,
+        configuration: str,
+        train_period: list[str | None] = [None, None],
+        val_period: list[str | None] = [None, None],
         num_workers: int = 0,
         prefetch_factor: int | None = None,
+        persistent_workers: bool = False,
     ):
-        """Datamodule for training pvnet_summation.
+        """Datamodule for creating concurrent PVNet inputs and national targets.
 
         Args:
-            sample_dir: Path to the directory of pre-saved samples.
-            gsp_zarr_path: Path to zarr file containing GSP ID 0 outputs
-            batch_size: Batch size.
+            configuration: Path to ocf-data-sampler configuration file.
+            train_period: Date range filter for train dataloader.
+            val_period: Date range filter for val dataloader.
             num_workers: Number of workers to use in multiprocess batch loading.
             prefetch_factor: Number of data will be prefetched at the end of each worker process.
+            persistent_workers: If True, the data loader will not shut down the worker processes 
+                after a dataset has been consumed once. This allows to maintain the workers Dataset 
+                instances alive.
         """
         super().__init__()
-        self.gsp_zarr_path = gsp_zarr_path
-        self.gsp_boundaries_version = gsp_boundaries_version
-        self.sample_dir = sample_dir
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.prefetch_factor = prefetch_factor
+        self.configuration = configuration
+        self.train_period = train_period
+        self.val_period = val_period
 
-    @property
-    def _dataloader_kwargs(self) -> dict:
-        return dict(
-            batch_size=self.batch_size,
-            sampler=None,
+        self._dataloader_kwargs = dict(
+            batch_size=None,
             batch_sampler=None,
-            num_workers=self.num_workers,
-            collate_fn=None if self.batch_size is None else collate_summation_samples,
+            num_workers=num_workers,
+            collate_fn=None,
             pin_memory=False,
             drop_last=False,
             timeout=0,
             worker_init_fn=None,
-            prefetch_factor=self.prefetch_factor,
-            persistent_workers=self.num_workers > 0,
+            prefetch_factor=prefetch_factor,
+            persistent_workers=persistent_workers,
         )
 
     def train_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct train dataloader"""
-        dataset = SavedSampleDataset(
-            f"{self.sample_dir}/train",
-            self.gsp_zarr_path,
-            self.gsp_boundaries_version,
-        )
+        dataset = StreamedDataset(self.configuration, *self.train_period)
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
     def val_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct val dataloader"""
-        dataset = SavedSampleDataset(
-            f"{self.sample_dir}/val",
-            self.gsp_zarr_path,
-            self.gsp_boundaries_version,
-        )
+        dataset = StreamedDataset(self.configuration, *self.val_period)
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
 
-class SavedPredictionDataset(Dataset):
+class PresavedDataset(Dataset):
+    """Dataset for loading pre-saved PVNet predictions from disk"""
+
     def __init__(self, sample_dir: str):
+        """"Dataset for loading pre-saved PVNet predictions from disk.
+        
+        Args:
+            sample_dir: The directory containing the saved samples
+        """
         self.sample_filepaths = sorted(glob(f"{sample_dir}/*.pt"))
 
     def __len__(self) -> int:
         return len(self.sample_filepaths)
 
     def __getitem__(self, idx: int) -> dict:
-        return torch.load(self.sample_filepaths[idx], weights_only=False)
+        return torch.load(self.sample_filepaths[idx], weights_only=True)
 
 
-class SavedPredictionDataModule(LightningDataModule):
-    """Datamodule for loading pre-saved PVNet predictions to train pvnet_summation."""
+class PresavedDataModule(LightningDataModule):
+    """Datamodule for loading pre-saved PVNet predictions."""
 
     def __init__(
         self,
@@ -162,43 +172,42 @@ class SavedPredictionDataModule(LightningDataModule):
         batch_size: int = 16,
         num_workers: int = 0,
         prefetch_factor: int | None = None,
+        persistent_workers: bool = False,
     ):
-        """Datamodule for loading pre-saved PVNet predictions to train pvnet_summation.
+        """Datamodule for loading pre-saved PVNet predictions.
 
         Args:
-            sample_dir: Path to the directory of pre-saved batches.
+            sample_dir: Path to the directory of pre-saved samples.
             batch_size: Batch size.
             num_workers: Number of workers to use in multiprocess batch loading.
             prefetch_factor: Number of data will be prefetched at the end of each worker process.
+            persistent_workers: If True, the data loader will not shut down the worker processes 
+                after a dataset has been consumed once. This allows to maintain the workers Dataset 
+                instances alive.
         """
         super().__init__()
         self.sample_dir = sample_dir
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.prefetch_factor = prefetch_factor
 
-    @property
-    def _dataloader_kwargs(self) -> dict:
-        return dict(
-            batch_size=self.batch_size,
+        self._dataloader_kwargs = dict(
+            batch_size=batch_size,
             sampler=None,
             batch_sampler=None,
-            num_workers=self.num_workers,
-            collate_fn=None if self.batch_size is None else default_collate,
+            num_workers=num_workers,
+            collate_fn=None if batch_size is None else default_collate,
             pin_memory=False,
             drop_last=False,
             timeout=0,
             worker_init_fn=None,
-            prefetch_factor=self.prefetch_factor,
-            persistent_workers=self.num_workers > 0,
+            prefetch_factor=prefetch_factor,
+            persistent_workers=persistent_workers,
         )
 
     def train_dataloader(self, shuffle: bool = True) -> DataLoader:
         """Construct train dataloader"""
-        dataset = SavedPredictionDataset(f"{self.sample_dir}/train")
+        dataset = PresavedDataset(f"{self.sample_dir}/train")
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
 
     def val_dataloader(self, shuffle: bool = False) -> DataLoader:
         """Construct val dataloader"""
-        dataset = SavedPredictionDataset(f"{self.sample_dir}/val")
+        dataset = PresavedDataset(f"{self.sample_dir}/val")
         return DataLoader(dataset, shuffle=shuffle, **self._dataloader_kwargs)
