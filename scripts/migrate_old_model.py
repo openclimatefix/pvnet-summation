@@ -1,9 +1,10 @@
 """Script to migrate old pvnet-summation models (v0.3.7) which are hosted on huggingface to current 
-version"""
+"""
+
 import datetime
 import os
-from importlib.metadata import version
 import tempfile
+from importlib.metadata import version
 
 import torch
 import yaml
@@ -12,7 +13,10 @@ from safetensors.torch import save_file
 
 from pvnet_summation.models import BaseModel
 from pvnet_summation.utils import (
-    MODEL_CARD_NAME, MODEL_CONFIG_NAME, PYTORCH_WEIGHTS_NAME, DATAMODULE_CONFIG_NAME,
+    DATAMODULE_CONFIG_NAME,
+    MODEL_CARD_NAME,
+    MODEL_CONFIG_NAME,
+    PYTORCH_WEIGHTS_NAME,
 )
 
 # ------------------------------------------
