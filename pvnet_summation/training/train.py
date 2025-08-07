@@ -13,7 +13,7 @@ from pvnet.models import BaseModel as PVNetBaseModel
 from tqdm import tqdm
 
 from pvnet_summation.data.datamodule import PresavedDataModule, StreamedDataModule
-from pvnet_summation.utils import MODEL_CONFIG_NAME, FULL_CONFIG_NAME, DATAMODULE_CONFIG_NAME
+from pvnet_summation.utils import DATAMODULE_CONFIG_NAME, FULL_CONFIG_NAME, MODEL_CONFIG_NAME
 
 log = logging.getLogger(__name__)
 
