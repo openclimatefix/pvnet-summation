@@ -8,7 +8,7 @@ from importlib.metadata import version
 
 import torch
 import yaml
-from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
+from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi, file_exists
 from safetensors.torch import save_file
 
 from pvnet_summation.models import BaseModel
@@ -23,19 +23,31 @@ from pvnet_summation.utils import (
 # USER SETTINGS
 
 # The huggingface commit of the model you want to update
-repo_id = "openclimatefix/pvnet_v2_summation"
-revision = "175a71206cf89a2d8fcd180cfa60d132590f12cb"
+repo_id: str = "openclimatefix/pvnet_v2_summation"
+revision: str = "175a71206cf89a2d8fcd180cfa60d132590f12cb"
+
+# If set to a string, this allows you to change the commit of the PVNet model which the summation 
+# model goes with. Else the commit hash is taken from what is already stored on huggingface.
+# This is useful if both PVNet and PVNet-summation are being migrated simultaneously
+pvnet_revision: str | None = None
 
 # The local directory which will be downloaded to
-local_dir = "/home/jamesfulton/tmp/sum_model_migration"
+# If set to None a temporary directory will be used
+local_dir: str | None = None
 
 # Whether to upload the migrated model back to the huggingface
-upload = False
+upload: bool = True
 
 # ------------------------------------------
 # SETUP
 
-os.makedirs(local_dir, exist_ok=False)
+if local_dir is None:
+    temp_dir = tempfile.TemporaryDirectory()
+    save_dir = temp_dir.name
+
+else:
+    os.makedirs(local_dir, exist_ok=False)
+    save_dir = local_dir
 
 # Set up huggingface API
 api = HfApi()
@@ -44,7 +56,7 @@ api = HfApi()
 _ = api.snapshot_download(
     repo_id=repo_id,
     revision=revision,
-    local_dir=local_dir,
+    local_dir=save_dir,
     force_download=True,
 )
 
@@ -52,27 +64,28 @@ _ = api.snapshot_download(
 # MIGRATION STEPS
 
 # Modify the model config
-with open(f"{local_dir}/{MODEL_CONFIG_NAME}") as cfg:
+with open(f"{save_dir}/{MODEL_CONFIG_NAME}") as cfg:
     model_config = yaml.load(cfg, Loader=yaml.FullLoader)
 
 # Get the PVNet model it was trained on
 pvnet_model_id = model_config.pop("model_name")
-pvnet_revision = model_config.pop("model_version")
+if pvnet_revision is None:
+    pvnet_revision = model_config["model_version"]
+del model_config["model_version"]
 
 
-with tempfile.TemporaryDirectory() as pvnet_dir_dir:
+with tempfile.TemporaryDirectory() as pvnet_dir:
 
     # Download the model repo
     _ = api.snapshot_download(
         repo_id=pvnet_model_id,
         revision=pvnet_revision,
-        local_dir=str(pvnet_dir_dir),
+        local_dir=str(pvnet_dir),
         force_download=True,
     )
 
-    with open(f"{pvnet_dir_dir}/{MODEL_CONFIG_NAME}") as cfg:
+    with open(f"{pvnet_dir}/{MODEL_CONFIG_NAME}") as cfg:
         pvnet_model_config = yaml.load(cfg, Loader=yaml.FullLoader)
-
 
 # Get rid of the optimiser - we don't store this anymore
 del model_config["optimizer"]
@@ -106,22 +119,22 @@ model_config["interval_minutes"] = pvnet_model_config.get("interval_minutes", 30
 model_config["input_quantiles"] = pvnet_model_config["output_quantiles"]
 
 # Save the model config
-with open(f"{local_dir}/{MODEL_CONFIG_NAME}", "w") as f:
+with open(f"{save_dir}/{MODEL_CONFIG_NAME}", "w") as f:
     yaml.dump(model_config, f, sort_keys=False, default_flow_style=False)
 
 # Create a datamodule
-with open(f"{local_dir}/{DATAMODULE_CONFIG_NAME}", "w") as f:
+with open(f"{save_dir}/{DATAMODULE_CONFIG_NAME}", "w") as f:
     datamodule = {"pvnet_model": {"model_id": pvnet_model_id, "revision": pvnet_revision}}
     yaml.dump(datamodule, f, sort_keys=False, default_flow_style=False)
 
 # Resave the model weights as safetensors and remove the PVNet weights which we no longer need
-state_dict = torch.load(f"{local_dir}/pytorch_model.bin", map_location="cpu", weights_only=True)
+state_dict = torch.load(f"{save_dir}/pytorch_model.bin", map_location="cpu", weights_only=True)
 new_state_dict = {k: v for k, v in state_dict.items() if not k.startswith("pvnet_model")}
-save_file(new_state_dict, f"{local_dir}/{PYTORCH_WEIGHTS_NAME}")
-os.remove(f"{local_dir}/pytorch_model.bin")
+save_file(new_state_dict, f"{save_dir}/{PYTORCH_WEIGHTS_NAME}")
+os.remove(f"{save_dir}/pytorch_model.bin")
 
 # Add a note to the model card to say the model has been migrated
-with open(f"{local_dir}/{MODEL_CARD_NAME}", "a") as f:
+with open(f"{save_dir}/{MODEL_CARD_NAME}", "a") as f:
     current_date = datetime.date.today().strftime("%Y-%m-%d")
     summation_version = version("pvnet_summation")
     f.write(
@@ -133,7 +146,7 @@ with open(f"{local_dir}/{MODEL_CARD_NAME}", "a") as f:
 # CHECKS
 
 # Check the model can be loaded
-model = BaseModel.from_pretrained(model_id=local_dir, revision=None)
+model = BaseModel.from_pretrained(model_id=save_dir, revision=None)
 
 print("Model checkpoint successfully migrated")
 
@@ -149,14 +162,15 @@ if upload:
         operations.append(
             CommitOperationAdd(
                 path_in_repo=file, # Name of the file in the repo
-                path_or_fileobj=f"{local_dir}/{file}", # Local path to the file
+                path_or_fileobj=f"{save_dir}/{file}", # Local path to the file
             ),
         )
-
-    operations.append(
-        # Remove old pytorch weights file
-        CommitOperationDelete(path_in_repo="pytorch_model.bin")
-    )
+    
+    # Remove old pytorch weights file if it exists in the most recent commit
+    if file_exists(repo_id, "pytorch_model.bin"):
+        operations.append(
+            CommitOperationDelete(path_in_repo="pytorch_model.bin")
+        )
 
     commit_info = api.create_commit(
         repo_id=repo_id,
