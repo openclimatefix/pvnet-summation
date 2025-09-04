@@ -18,3 +18,8 @@ train_period:
 val_period:
     - '2022-01-01'
     - '2022-12-31'
+
+seed: "${seed}"
+
+# Setting the dataset pickle dir will speed up initiation of multiple workers
+dataset_pickle_dir: null

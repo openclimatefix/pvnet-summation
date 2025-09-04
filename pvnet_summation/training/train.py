@@ -93,7 +93,11 @@ def train(config: DictConfig) -> None:
             train_period=config.datamodule.train_period,
             val_period=config.datamodule.val_period,
             persistent_workers=False,
+            seed=config.datamodule.seed,
+            dataset_pickle_dir=config.datamodule.dataset_pickle_dir,
         )
+
+        datamodule.setup()
 
         for dataloader_func, max_num_samples, split in [
             (datamodule.train_dataloader, config.datamodule.max_num_train_samples, "train",),
@@ -103,7 +107,10 @@ def train(config: DictConfig) -> None:
             log.info(f"Saving {split} outputs")
             dataloader = dataloader_func(shuffle=True)
 
-            for i, sample in tqdm(zip(range(max_num_samples), dataloader)):
+            if max_num_samples is None:
+                max_num_samples=len(dataloader)
+
+            for i, sample in tqdm(zip(range(max_num_samples), dataloader), total=max_num_samples):
                 # Run PVNet inputs though model
                 x = copy_batch_to_device(batch_to_tensor(sample["pvnet_inputs"]), device)
                 pvnet_outputs = pvnet_model(x).detach().cpu()
@@ -115,6 +122,9 @@ def train(config: DictConfig) -> None:
                 torch.save(sample_to_save, f"{save_dir}/{split}/{i:06}.pt")
             
             del dataloader
+
+        datamodule.teardown()
+
 
     datamodule = PresavedDataModule(
         sample_dir=save_dir,
