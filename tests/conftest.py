@@ -231,6 +231,8 @@ def presaved_samples_dir(session_tmp_path, data_config_path, pvnet_model_config)
         persistent_workers=False,
     )
 
+    datamodule.setup()
+
     dataloader = datamodule.train_dataloader(shuffle=True)
 
     sample = next(iter(dataloader))
