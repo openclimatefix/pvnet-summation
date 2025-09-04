@@ -7,7 +7,6 @@ This file can be run for example using
 import logging
 import sys
 
-
 import hydra
 from omegaconf import DictConfig
 

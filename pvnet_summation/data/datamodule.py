@@ -12,7 +12,7 @@ from ocf_data_sampler.load.gsp import open_gsp
 from ocf_data_sampler.numpy_sample.common_types import NumpyBatch, NumpySample
 from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
 from ocf_data_sampler.utils import minutes
-from torch.utils.data import DataLoader, Dataset, default_collate, Subset
+from torch.utils.data import DataLoader, Dataset, Subset, default_collate
 from typing_extensions import override
 
 SumNumpySample: TypeAlias = dict[str, np.ndarray | NumpyBatch]
@@ -118,6 +118,9 @@ class StreamedDataModule(LightningDataModule):
             persistent_workers: If True, the data loader will not shut down the worker processes 
                 after a dataset has been consumed once. This allows to maintain the workers Dataset 
                 instances alive.
+            seed: Random seed used in shuffling datasets.
+            dataset_pickle_dir: Directory in which the val and train set will be presaved as
+                pickle objects. Setting this speeds up instantiation of multiple workers a lot.
         """
         super().__init__()
         self.configuration = configuration
