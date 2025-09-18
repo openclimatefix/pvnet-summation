@@ -11,7 +11,7 @@ import hydra
 from omegaconf import DictConfig
 
 from pvnet_summation.training import train
-from pvnet_summation.utils import print_config, run_config_utilities
+from pvnet_summation.utils import print_config, maybe_apply_debug_mode
 
 logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
 
@@ -21,11 +21,8 @@ logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
 def main(config: DictConfig) -> None:
     """Runs training"""
 
-    # A couple of optional utilities:
-    # - disabling python warnings
-    # - forcing debug friendly configuration
-    # - forcing multi-gpu friendly configuration
-    run_config_utilities(config)
+    # Forcing debug friendly configuration if requested in config
+    maybe_apply_debug_mode(config)
 
     print_config(config, resolve=True)
 

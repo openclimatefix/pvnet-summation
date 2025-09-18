@@ -17,11 +17,10 @@ MODEL_CARD_NAME = "README.md"
 
 
 
-def run_config_utilities(config: DictConfig) -> None:
-    """A couple of optional utilities.
+def maybe_apply_debug_mode(config: DictConfig) -> None:
+    """Check if debugging run is requested and force debug-frendly configuration
 
-    Controlled by main config file:
-    - forcing debug friendly configuration
+    Controlled by main config file
 
     Modifies DictConfig in place.
 
@@ -52,7 +51,7 @@ def run_config_utilities(config: DictConfig) -> None:
 @rank_zero_only
 def print_config(
     config: DictConfig,
-    fields: tuple[str] = (
+    fields: tuple[str, ...] = (
         "trainer",
         "model",
         "datamodule",
@@ -66,7 +65,7 @@ def print_config(
 
     Args:
         config (DictConfig): Configuration composed by Hydra.
-        fields (Sequence[str], optional): Determines which main fields from config will
+        fields (tuple[str, ...], optional): Determines which main fields from config will
         be printed and in what order.
         resolve (bool, optional): Whether to resolve reference fields of DictConfig.
     """

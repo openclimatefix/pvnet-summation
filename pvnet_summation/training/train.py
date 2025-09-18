@@ -21,9 +21,8 @@ log = logging.getLogger(__name__)
 def resolve_monitor_loss(output_quantiles: list | None) -> str:
     """Return the desired metric to monitor based on whether quantile regression is being used.
 
-    The adds the option to use something like:
+    Adds the option to use
         monitor: "${resolve_monitor_loss:${model.model.output_quantiles}}"
-
     in early stopping and model checkpoint callbacks so the callbacks config does not need to be
     modified depending on whether quantile regression is being used or not.
     """

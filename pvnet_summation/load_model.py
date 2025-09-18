@@ -20,10 +20,14 @@ def get_model_from_checkpoints(
 ) -> tuple[torch.nn.Module, dict, str | None, str | None]:
     """Load a model from its checkpoint directory
 
+    Args:
+        checkpoint_dir_path: str path to the directory with the model files
+        val_best (optional): if True, load the best epoch model; otherwise, load the last
+
     Returns:
         tuple:
             model: nn.Module of pretrained model.
-            model_config: path to model config used to train the model.
+            model_config: dict of model config used to train the model.
             datamodule_config: path to datamodule used to create samples e.g train/test split info.
             experiment_configs: path to the full experimental config.
 
