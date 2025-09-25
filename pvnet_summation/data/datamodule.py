@@ -12,11 +12,23 @@ from ocf_data_sampler.load.gsp import open_gsp
 from ocf_data_sampler.numpy_sample.common_types import NumpyBatch, NumpySample
 from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
 from ocf_data_sampler.utils import minutes
+from ocf_data_sampler.numpy_sample.sun_position import calculate_azimuth_and_elevation
 from torch.utils.data import DataLoader, Dataset, Subset, default_collate
 from typing_extensions import override
 
 SumNumpySample: TypeAlias = dict[str, np.ndarray | NumpyBatch]
 SumTensorBatch: TypeAlias = dict[str, torch.Tensor]
+
+
+from ocf_data_sampler.load.gsp import get_gsp_boundaries
+from ocf_data_sampler.select.geospatial import osgb_to_lon_lat
+
+df = get_gsp_boundaries("20250109")
+x_osgb = df.x_osgb[0].item()
+y_osgb = df.y_osgb[0].item()
+del df
+LON, LAT = osgb_to_lon_lat(x_osgb, y_osgb)
+
 
 
 class StreamedDataset(PVNetUKConcurrentDataset):
@@ -66,22 +78,29 @@ class StreamedDataset(PVNetUKConcurrentDataset):
             freq=minutes(self.config.input_data.gsp.time_resolution_minutes)
         )
 
-        total_outturns = self.national_gsp_data.sel(time_utc=valid_times).values
+        total_relative_outturns = self.national_gsp_data.sel(time_utc=valid_times).values
         total_capacity = self.national_gsp_data.sel(time_utc=t0).effective_capacity_mwp.item()
 
         relative_capacities = location_capacities / total_capacity
+        #lon, lat =  -0.709696, 51.740754
+        lon, lat = LON, LAT
+        azimuth, elevation = calculate_azimuth_and_elevation(valid_times, lon, lat)
 
         return {
             # NumpyBatch object with batch size = num_locations
             "pvnet_inputs": pvnet_inputs,
             # Shape: [time]
-            "target": total_outturns,
+            "target": total_relative_outturns,
             # Shape: [time]
             "valid_times": valid_times.values.astype(int),
-            # Shape: 
+            # Shape: scalar
             "last_outturn": self.national_gsp_data.sel(time_utc=t0).values,
             # Shape: [num_locations]
             "relative_capacity": relative_capacities,
+            # Shape: [time]
+            "azimuth": azimuth / 360,
+            # Shape: [time]
+            "elevation": elevation / 180 + 0.5,
         }
 
     @override
@@ -209,7 +228,17 @@ class PresavedDataset(Dataset):
         return len(self.sample_filepaths)
 
     def __getitem__(self, idx: int) -> dict:
-        return torch.load(self.sample_filepaths[idx], weights_only=True)
+        x = torch.load(self.sample_filepaths[idx], weights_only=True)
+
+        ts = np.array(x["valid_times"]).astype("datetime64[ns]")
+        datetimes = pd.to_datetime(ts)
+        #lon, lat =  -0.709696, 51.740754
+        lon, lat = LON, LAT
+        azimuth, elevation = calculate_azimuth_and_elevation(datetimes, lon, lat)
+        x["azimuth"] = azimuth.astype(np.float32)
+        x["elevation"] = elevation.astype(np.float32)
+        return x
+        
 
 
 class PresavedDataModule(LightningDataModule):
