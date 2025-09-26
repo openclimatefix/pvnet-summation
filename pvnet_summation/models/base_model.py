@@ -5,6 +5,7 @@ import shutil
 import time
 from importlib.metadata import version
 from pathlib import Path
+from math import prod
 
 import hydra
 import torch
@@ -293,6 +294,12 @@ class BaseModel(torch.nn.Module, HuggingfaceMixin):
         """
         super().__init__()
 
+        if (output_quantiles is not None):
+            if output_quantiles != sorted(output_quantiles):
+                raise ValueError("output_quantiles should be in ascending order")
+            if 0.5 not in output_quantiles:
+                raise ValueError("Quantiles must include 0.5")
+
         self.output_quantiles = output_quantiles
 
         self.num_input_locations = num_input_locations
@@ -309,17 +316,21 @@ class BaseModel(torch.nn.Module, HuggingfaceMixin):
         # Store whether the model should use quantile regression or simply predict the mean
         self.use_quantile_regression = self.output_quantiles is not None
 
-        # Store the number of ouput features that the model should predict for
+        # Also store the final output shape
         if self.use_quantile_regression:
-            self.num_output_features = self.forecast_len * len(self.output_quantiles)
+            self.output_shape = (self.forecast_len, len(input_quantiles))
         else:
-            self.num_output_features = self.forecast_len
+            self.output_shape = (self.forecast_len,)
+
+        # Store the number of output features and that the model should predict for
+        self.num_output_features = prod(self.output_shape)
 
         # Store the expected input shape
         if input_quantiles is None:
             self.input_shape = (self.num_input_locations, self.forecast_len)
         else:
             self.input_shape = (self.num_input_locations, self.forecast_len, len(input_quantiles))
+            
 
     def _quantiles_to_prediction(self, y_quantiles: torch.Tensor) -> torch.Tensor:
         """Convert network prediction into a point prediction.
