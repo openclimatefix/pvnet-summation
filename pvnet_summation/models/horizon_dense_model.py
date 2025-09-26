@@ -1,4 +1,4 @@
-"""Simple model which only uses outputs of PVNet for all GSPs"""
+"""Neural network architecture based on dense layers applied independently at each horizon"""
 
 import torch
 import torch.nn.functional as F
@@ -8,9 +8,8 @@ from pvnet_summation.data.datamodule import SumTensorBatch
 from pvnet_summation.models.base_model import BaseModel
 
 
-class NewModel(BaseModel):
-    """Neural network architecture based on dense layers applied independently at each horizon
-
+class HorizonDenseModel(BaseModel):
+    """Neural network architecture based on dense layers applied independently at each horizon.
     """
 
     def __init__(
@@ -23,13 +22,26 @@ class NewModel(BaseModel):
         interval_minutes: int,
         output_network: torch.nn.Module,        
         predict_difference_from_sum: bool = False,
-        add_horizon_encoding: bool = False,
-        add_solar_position: bool = False,
+        use_horizon_encoding: bool = False,
+        use_solar_position: bool = False,
         force_non_crossing: bool = False,
         beta: float = 3,
     ):
-        """Neural network architecture based on naive dense layers
+        """Neural network architecture based on dense layers applied independently at each horizon.
 
+        Args:
+            output_quantiles: A list of float (0.0, 1.0) quantiles to predict values for. If set to
+                None the output is a single value.
+            num_input_locations: The number of input locations (e.g. number of GSPs)
+            input_quantiles: A list of float (0.0, 1.0) quantiles which PVNet predicts for. If set 
+                to None we assume PVNet predicts a single value
+            history_minutes (int): Length of the GSP history period in minutes
+            forecast_minutes (int): Length of the GSP forecast period in minutes
+            interval_minutes: The interval in minutes between each timestep in the data
+            output_network: A partially instantiated pytorch Module class used top predict the 
+                outturn at each horizon.
+            predict_difference_from_sum: Whether to predict the difference from the sum of locations
+                else the total is predicted directly
         """
 
         super().__init__(
@@ -41,11 +53,11 @@ class NewModel(BaseModel):
             interval_minutes,
         )
 
-        self.add_horizon_encoding = add_horizon_encoding
+        self.use_horizon_encoding = use_horizon_encoding
         self.predict_difference_from_sum = predict_difference_from_sum
         self.force_non_crossing = force_non_crossing
         self.beta = beta
-        self.add_solar_position = add_solar_position
+        self.use_solar_position = use_solar_position
 
 
         if force_non_crossing:
@@ -56,10 +68,10 @@ class NewModel(BaseModel):
         else:
             in_features = self.num_input_locations * len(input_quantiles)
 
-        if add_horizon_encoding:
+        if use_horizon_encoding:
             in_features += 1
 
-        if add_solar_position:
+        if use_solar_position:
             in_features += 2
 
         if self.use_quantile_regression:
@@ -89,7 +101,7 @@ class NewModel(BaseModel):
         x_in = torch.swapaxes(x["pvnet_outputs"], 1, 2) # -> [batch, horizon, locs, (quantile)]
         x_in = torch.flatten(x_in, start_dim=2) # -> [batch, horizon, locs*(quantile)]
 
-        if self.add_horizon_encoding:
+        if self.use_horizon_encoding:
             horizon_encoding = torch.arange(
                 start=0, 
                 end=self.forecast_len,
@@ -99,10 +111,11 @@ class NewModel(BaseModel):
             horizon_encoding = horizon_encoding.tile((b,1)).unsqueeze(-1)
             x_in = torch.cat([x_in, horizon_encoding], dim=2)
 
-        if self.add_solar_position:
-            azimuth = x["azimuth"]
-            elevation = x["elevation"]
-            x_in = torch.cat([x_in, azimuth.unsqueeze(-1), elevation.unsqueeze(-1)], dim=2)
+        if self.use_solar_position:
+            x_in = torch.cat(
+                [x_in, x["azimuth"].unsqueeze(-1), x["elevation"].unsqueeze(-1)],
+                dim=2
+            )
 
         x_in = torch.flatten(x_in, start_dim=0, end_dim=1) # -> [batch*horizon, locs*(quantile)]
 
