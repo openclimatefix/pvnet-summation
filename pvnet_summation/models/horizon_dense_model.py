@@ -1,9 +1,9 @@
 """Neural network architecture based on dense layers applied independently at each horizon"""
 
+
 import torch
 import torch.nn.functional as F
 from torch import nn
-from math import prod
 
 from pvnet_summation.data.datamodule import SumTensorBatch
 from pvnet_summation.models.base_model import BaseModel

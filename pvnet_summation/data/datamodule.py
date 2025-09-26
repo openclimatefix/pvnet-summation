@@ -8,12 +8,12 @@ import numpy as np
 import pandas as pd
 import torch
 from lightning.pytorch import LightningDataModule
-from ocf_data_sampler.load.gsp import open_gsp, get_gsp_boundaries
+from ocf_data_sampler.load.gsp import get_gsp_boundaries, open_gsp
 from ocf_data_sampler.numpy_sample.common_types import NumpyBatch
+from ocf_data_sampler.numpy_sample.sun_position import calculate_azimuth_and_elevation
 from ocf_data_sampler.select.geospatial import osgb_to_lon_lat
 from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
 from ocf_data_sampler.utils import minutes
-from ocf_data_sampler.numpy_sample.sun_position import calculate_azimuth_and_elevation
 from torch.utils.data import DataLoader, Dataset, Subset, default_collate
 from typing_extensions import override
 

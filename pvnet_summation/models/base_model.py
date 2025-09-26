@@ -4,8 +4,8 @@ import os
 import shutil
 import time
 from importlib.metadata import version
-from pathlib import Path
 from math import prod
+from pathlib import Path
 
 import hydra
 import torch
