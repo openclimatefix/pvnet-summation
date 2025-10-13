@@ -131,8 +131,7 @@ class StreamedDataset(PVNetUKConcurrentDataset):
             relative_capacities=relative_capacities,
             target=target,
             last_outturn=last_outturn,
-        )        
-
+        )
 
     @override
     def __getitem__(self, idx: int) -> SumNumpySample:
@@ -259,13 +258,7 @@ class PresavedDataset(Dataset):
         return len(self.sample_filepaths)
 
     def __getitem__(self, idx: int) -> dict:
-        x = torch.load(self.sample_filepaths[idx], weights_only=True)
-        ts = np.array(x["valid_times"]).astype("datetime64[ns]")
-        datetimes = pd.to_datetime(ts)
-        azimuth, elevation = calculate_azimuth_and_elevation(datetimes, LON, LAT)
-        x["azimuth"] = azimuth.astype(np.float32)
-        x["elevation"] = elevation.astype(np.float32)
-        return x
+        return torch.load(self.sample_filepaths[idx], weights_only=True)
 
 
 class PresavedDataModule(LightningDataModule):

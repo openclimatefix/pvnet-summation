@@ -118,62 +118,54 @@ class HorizonDenseModel(BaseModel):
                 dim=2
             )
 
-        x_in = torch.flatten(x_in, start_dim=0, end_dim=1) # -> [batch*horizon, locs*(quantile)]
+        x_in = torch.flatten(x_in, start_dim=0, end_dim=1) # -> [batch*horizon, features]
 
         out = self.model(x_in)
         out = out.view(batch_size, *self.output_shape) # -> [batch, horizon, (quantile)]
 
-        if not self.use_quantile_regression:
-            # Shape: [batch_size, horizon, {quantiles, 1}]
-            out = out.squeeze(axis=-1)
-
-        if self.predict_difference_from_sum:
-            loc_sum = self.sum_of_locations(x)
-
-            if self.use_quantile_regression:
-                loc_sum = loc_sum.unsqueeze(-1)
-
-            if self.force_non_crossing:
-                
-                # Get the prediction of the median
-                idx = self.output_quantiles.index(0.5)
+        if self.force_non_crossing:
+            
+            # Get the prediction of the median
+            idx = self.output_quantiles.index(0.5)
+            if self.predict_difference_from_sum:
+                loc_sum = self.sum_of_locations(x).unsqueeze(-1)
                 y_median = loc_sum + out[..., idx:idx+1]
+            else:
+                y_median = out[..., idx:idx+1]
 
-                # These are the differences between the remaining quantiles
-                dy_below = F.softplus(out[..., :idx], beta=self.beta)
-                dy_above = F.softplus(out[..., idx+1:], beta=self.beta)
+            # These are the differences between the remaining quantiles
+            dy_below = F.softplus(out[..., :idx], beta=self.beta)
+            dy_above = F.softplus(out[..., idx+1:], beta=self.beta)
 
-                # Find the absolute value of the quantile predictions from the differences
-                y_below = []
-                y = y_median
-                for i in range(dy_below.shape[-1]):
-                    # We detach y to avoid different quantiles affecting each other.
-                    # For example if the 0.9 quantile prediction was too low, we don't want the
-                    # gradient to pull the 0.5 quantile prediction higher to compensate.
-                    y = y.detach() - dy_below[..., i:i+1]
-                    y_below.append(y)
+            # Find the absolute value of the quantile predictions from the differences
+            y_below = []
+            y = y_median
+            for i in range(dy_below.shape[-1]):
+                # We detach y to avoid the gradients caused by errors from one quantile 
+                # prediction  flowing back to affect the other quantile predictions.
+                # For example if the 0.9 quantile prediction was too low, we don't want the
+                # gradient to pull the 0.5 quantile prediction higher to compensate.
+                y = y.detach() - dy_below[..., i:i+1]
+                y_below.append(y)
 
-                y_above = []
-                y = y_median
-                for i in range(dy_above.shape[-1]):
-                    y = y.detach() + dy_above[..., i:i+1]
-                    y_above.append(y)
+            y_above = []
+            y = y_median
+            for i in range(dy_above.shape[-1]):
+                y = y.detach() + dy_above[..., i:i+1]
+                y_above.append(y)
 
-                # Put the quantile predictions in order
-                out = torch.cat(y_below[::-1] + [y_median,] + y_above, dim=-1)
+            # Compile the quantile predictions in the correct order
+            out = torch.cat(y_below[::-1] + [y_median,] + y_above, dim=-1)
 
         else:
-            if self.force_non_crossing:
-                out = F.softplus(out, beta=self.beta)
 
-                # Integrate the differences
-                y = out[..., 0:1]
-                y_quantiles = [y]
-                for i in range(1, out.shape[-1]):
-                    y = y.detach() + out[..., i:i+1]
-                    y_quantiles.append(y)
+            if self.predict_difference_from_sum:
+                loc_sum = self.sum_of_locations(x)
 
-                out = torch.cat(y_quantiles, dim=-1)
+                if self.use_quantile_regression:
+                    loc_sum = loc_sum.unsqueeze(-1)
+
+                out = loc_sum + out
 
         # Use leaky relu as a soft clip to 0
         return F.leaky_relu(out, negative_slope=0.01)
