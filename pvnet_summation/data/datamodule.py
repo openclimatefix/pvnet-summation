@@ -57,9 +57,9 @@ def construct_sample(
         # Shape: [num_locations]
         "relative_capacity": relative_capacities,
         # Shape: [time]
-        "azimuth": azimuth / 360,
+        "azimuth": azimuth.astype(np.float32) / 360,
         # Shape: [time]
-        "elevation": elevation / 180 + 0.5,
+        "elevation": elevation.astype(np.float32) / 180 + 0.5,
     }
 
     if target is not None:
