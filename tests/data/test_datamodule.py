@@ -1,4 +1,4 @@
-from pvnet_summation.data.datamodule import StreamedDataset, PresavedDataset
+from pvnet_summation.data.datamodule import PresavedDataset, StreamedDataset
 
 
 def test_streameddataset(data_config_path):

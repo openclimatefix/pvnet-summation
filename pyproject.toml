@@ -14,7 +14,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "pvnet>=5.0.0",
-    "ocf-data-sampler>=0.2.32",
+    "ocf-data-sampler>=0.6.0",
     "numpy",
     "pandas",
     "matplotlib",

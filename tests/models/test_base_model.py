@@ -1,7 +1,8 @@
 """Test the methods which stem from the BaseModel class"""
-from pvnet_summation.models import BaseModel
-import pvnet_summation.model_cards
 import yaml
+
+import pvnet_summation.model_cards
+from pvnet_summation.models import BaseModel
 
 card_path = f"{pvnet_summation.model_cards.__path__[0]}/empty_model_card_template.md"
 

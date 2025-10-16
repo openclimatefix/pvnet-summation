@@ -1,4 +1,5 @@
 import pytest
+
 from pvnet_summation.models.horizon_dense_model import HorizonDenseModel
 
 

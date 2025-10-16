@@ -1,7 +1,8 @@
 import lightning
+
 from pvnet_summation.data.datamodule import PresavedDataModule
-from pvnet_summation.training.lightning_module import PVNetSummationLightningModule
 from pvnet_summation.optimizers import AdamW
+from pvnet_summation.training.lightning_module import PVNetSummationLightningModule
 
 
 def test_model_trainer_fit(model, presaved_samples_dir):
