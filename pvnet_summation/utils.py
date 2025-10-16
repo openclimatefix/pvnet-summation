@@ -3,10 +3,9 @@ import logging
 
 import rich.syntax
 import rich.tree
+import yaml
 from lightning.pytorch.utilities import rank_zero_only
 from omegaconf import DictConfig, OmegaConf
-import yaml
-
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
 
 logger = logging.getLogger(__name__)
@@ -94,6 +93,7 @@ def populate_config_with_data_data_filepaths(config: dict, data_source_paths: di
 
     Args:
         config: The data config
+        data_source_paths: A dictionary of data paths for the different input sources
     """
 
     # Replace the GSP data path
