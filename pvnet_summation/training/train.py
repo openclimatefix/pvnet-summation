@@ -13,7 +13,12 @@ from pvnet.models import BaseModel as PVNetBaseModel
 from tqdm import tqdm
 
 from pvnet_summation.data.datamodule import PresavedDataModule, StreamedDataModule
-from pvnet_summation.utils import DATAMODULE_CONFIG_NAME, FULL_CONFIG_NAME, MODEL_CONFIG_NAME
+from pvnet_summation.utils import (
+    DATAMODULE_CONFIG_NAME, 
+    FULL_CONFIG_NAME, 
+    MODEL_CONFIG_NAME, 
+    create_pvnet_model_config,
+)
 
 log = logging.getLogger(__name__)
 
@@ -86,8 +91,22 @@ def train(config: DictConfig) -> None:
         os.makedirs(f"{save_dir}/train")
         os.makedirs(f"{save_dir}/val")
 
+        pvnet_data_config_path = f"{save_dir}/pvnet_data_config.yaml"
+
+        data_source_paths = OmegaConf.to_container(
+            config.datamodule.data_source_paths, 
+            resolve=True,
+        )
+
+        create_pvnet_model_config(
+            save_path=pvnet_data_config_path,
+            repo=config.datamodule.pvnet_model.model_id,
+            commit=config.datamodule.pvnet_model.revision,
+            data_source_paths=data_source_paths,
+        )
+
         datamodule = StreamedDataModule(
-            configuration=config.datamodule.configuration,
+            configuration=pvnet_data_config_path,
             num_workers=config.datamodule.num_workers,
             prefetch_factor=config.datamodule.prefetch_factor,
             train_period=config.datamodule.train_period,
@@ -107,8 +126,8 @@ def train(config: DictConfig) -> None:
             log.info(f"Saving {split} outputs")
             dataloader = dataloader_func(shuffle=True)
 
-            if max_num_samples is None:
-                max_num_samples=len(dataloader)
+            # If max_num_samples set to None use all samples
+            max_num_samples = max_num_samples or len(dataloader)
 
             for i, sample in tqdm(zip(range(max_num_samples), dataloader), total=max_num_samples):
                 # Run PVNet inputs though model
