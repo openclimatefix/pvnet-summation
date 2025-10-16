@@ -1,4 +1,5 @@
 import pytest
+
 from pvnet_summation.models.dense_model import DenseModel
 
 

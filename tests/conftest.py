@@ -1,37 +1,27 @@
-import pytest
-
-import yaml
-
-import dask
-
-
-from pvnet_summation.models import DenseModel
-
-from pvnet_summation.data.datamodule import (
-    StreamedDataModule,
-    PresavedDataset,
-    SumTensorBatch,
-)
-
-from torch.utils.data import default_collate
-
-from ocf_data_sampler.torch_datasets.sample.base import batch_to_tensor, copy_batch_to_device
-
-
 import os
 
+import dask
 import dask.array
-import pytest
-import pandas as pd
-import numpy as np
-import xarray as xr
-import torch
 import hydra
-
-
+import numpy as np
+import pandas as pd
+import pytest
+import torch
+import xarray as xr
+import yaml
 from ocf_data_sampler.config import load_yaml_configuration, save_yaml_configuration
+from ocf_data_sampler.torch_datasets.utils.torch_batch_utils import (
+    batch_to_tensor,
+    copy_batch_to_device,
+)
+from torch.utils.data import default_collate
 
-
+from pvnet_summation.data.datamodule import (
+    PresavedDataset,
+    StreamedDataModule,
+    SumTensorBatch,
+)
+from pvnet_summation.models import DenseModel
 
 _top_test_directory = os.path.dirname(os.path.realpath(__file__))
 

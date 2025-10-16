@@ -1,4 +1,4 @@
-from pvnet_summation.data.datamodule import StreamedDataset, PresavedDataset
+from pvnet_summation.data.datamodule import PresavedDataset, StreamedDataset
 
 
 def test_streameddataset(data_config_path):
@@ -6,7 +6,10 @@ def test_streameddataset(data_config_path):
     sample = dataset[0]
 
     expected_keys = set(
-        ["pvnet_inputs", "target", "valid_times", "last_outturn", "relative_capacity",]
+        [
+            "pvnet_inputs", "target", "valid_times", "last_outturn", "relative_capacity", 
+            "azimuth", "elevation",
+        ]
     )
     assert set(sample.keys())==expected_keys
 
@@ -16,6 +19,9 @@ def test_presaveddataset(presaved_samples_dir):
     sample = dataset[0]
 
     expected_keys = set(
-        ["pvnet_outputs", "target", "valid_times", "last_outturn", "relative_capacity",]
+        [
+            "pvnet_outputs", "target", "valid_times", "last_outturn", "relative_capacity", 
+            "azimuth", "elevation",
+        ]
     )
     assert set(sample.keys())==expected_keys

@@ -3,8 +3,10 @@ import logging
 
 import rich.syntax
 import rich.tree
+import yaml
 from lightning.pytorch.utilities import rank_zero_only
 from omegaconf import DictConfig, OmegaConf
+from pvnet.models.base_model import BaseModel as PVNetBaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -84,3 +86,47 @@ def print_config(
         branch.add(rich.syntax.Syntax(branch_content, "yaml"))
 
     rich.print(tree)
+
+def populate_config_with_data_data_filepaths(config: dict, data_source_paths: dict) -> dict:
+    """Populate the data source filepaths in the config
+
+    Args:
+        config: The data config
+        data_source_paths: A dictionary of data paths for the different input sources
+    """
+
+    # Replace the GSP data path
+    config["input_data"]["gsp"]["zarr_path"] =  data_source_paths["gsp"]
+
+    # Replace satellite data path if using it
+    if "satellite" in config["input_data"]:
+        if config["input_data"]["satellite"]["zarr_path"] != "":
+            config["input_data"]["satellite"]["zarr_path"] = data_source_paths["satellite"]
+
+    # NWP is nested so much be treated separately
+    if "nwp" in config["input_data"]:
+        nwp_config = config["input_data"]["nwp"]
+        for nwp_source in nwp_config.keys():
+            provider = nwp_config[nwp_source]["provider"]
+            assert provider in data_source_paths["nwp"], f"Missing NWP path: {provider}"
+            nwp_config[nwp_source]["zarr_path"] = data_source_paths["nwp"][provider]
+
+    return config
+
+
+def create_pvnet_model_config(
+    save_path: str, 
+    repo: str, 
+    commit: str, 
+    data_source_paths: dict,
+) -> None:
+    """Create the data config needed to run the PVNet model"""
+    data_config_path = PVNetBaseModel.get_data_config(repo, revision=commit)
+
+    with open(data_config_path) as file:
+        data_config = yaml.load(file, Loader=yaml.FullLoader)
+
+    data_config = populate_config_with_data_data_filepaths(data_config, data_source_paths)
+
+    with open(save_path, "w") as file:
+        yaml.dump(data_config, file, default_flow_style=False)

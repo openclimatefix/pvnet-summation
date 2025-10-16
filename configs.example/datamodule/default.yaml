@@ -1,4 +1,17 @@
-configuration: PLACEHOLDER
+# list the filepaths to data sources required by PVNet to make regional predictions
+data_source_paths:
+    gsp: PLACESHOLDER.zarr
+    satellite: 
+        - PLACESHOLDER_PART1.zarr
+        - PLACESHOLDER_PART2.zarr
+    # The NWP data needed to be listed by provider
+    nwp:
+        ukv: PLACESHOLDER.zarr
+        ecmwf:
+            - PLACESHOLDER_PART1.zarr
+            - PLACESHOLDER_PART2.zarr
+        cloudcasting: PLACESHOLDER.zarr
+
 batch_size: 32
 num_workers: 20
 prefetch_factor: 2

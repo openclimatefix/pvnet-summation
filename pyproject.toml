@@ -9,12 +9,12 @@ authors = [{name="James Fulton", email="info@openclimatefix.org"}]
 dynamic = ["version"]
 license={file="LICENCE"}
 readme = {file="README.md", content-type="text/markdown"}
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 
 dependencies = [
     "pvnet>=5.0.0",
-    "ocf-data-sampler>=0.2.32",
+    "ocf-data-sampler>=0.6.0",
     "numpy",
     "pandas",
     "matplotlib",
