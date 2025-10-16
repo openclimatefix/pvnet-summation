@@ -8,7 +8,8 @@ from lightning.pytorch import Callback, Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import Logger, WandbLogger
 from ocf_data_sampler.torch_datasets.utils.torch_batch_utils import (
-    batch_to_tensor, copy_batch_to_device
+    batch_to_tensor,
+    copy_batch_to_device,
 )
 from omegaconf import DictConfig, OmegaConf
 from pvnet.models import BaseModel as PVNetBaseModel
