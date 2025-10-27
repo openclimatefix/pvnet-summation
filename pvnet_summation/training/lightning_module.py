@@ -141,6 +141,7 @@ class PVNetSummationLightningModule(pl.LightningModule):
         self._val_horizon_maes: list[np.array] = []
         if self.current_epoch==0:
             self._val_persistence_horizon_maes: list[np.array] = []
+            self._val_loc_sum_horizon_maes: list[np.array] = []
         
         # Plot some sample forecasts
         val_dataset = self.trainer.val_dataloaders.dataset
@@ -159,8 +160,10 @@ class PVNetSummationLightningModule(pl.LightningModule):
             batch = self.transfer_batch_to_device(batch, self.device, dataloader_idx=0)
             with torch.no_grad():
                 y_hat = self.model(batch)
+
+            y_loc_sum = self.model.sum_of_locations(batch)
             
-            fig = plot_sample_forecasts(batch, y_hat, quantiles=self.model.output_quantiles)
+            fig = plot_sample_forecasts(batch, y_hat, y_loc_sum, self.model.output_quantiles)
 
             plot_name = f"val_forecast_samples/sample_set_{plot_num}"
 
@@ -195,9 +198,11 @@ class PVNetSummationLightningModule(pl.LightningModule):
         losses.update({f"val_step_MAE/step_{i:03}": m for i, m in enumerate(mae_step)})
         losses.update({f"val_step_MSE/step_{i:03}": m for i, m in enumerate(mse_step)})
 
-        # Calculate the persistance losses - we only need to do this once per training run
-        # not every epoch
+        # Calculate the persistence and sum-of-locations losses - we only need to do this once per 
+        # training run not every epoch
         if self.current_epoch==0:
+            
+            # Persistance
             y_persist = batch["last_outturn"].unsqueeze(1).expand(-1, self.model.forecast_len)
             mae_step_persist, mse_step_persist = self._calculate_step_metrics(y, y_persist)
             self._val_persistence_horizon_maes.append(mae_step_persist)
@@ -205,6 +210,17 @@ class PVNetSummationLightningModule(pl.LightningModule):
                 {
                     "MAE/val_persistence": mae_step_persist.mean(), 
                     "MSE/val_persistence": mse_step_persist.mean()
+                }
+            )
+
+            # Sum of Locations
+            y_loc_sum = self.model.sum_of_locations(batch)
+            mae_step_loc_sum, mse_step_loc_sum = self._calculate_step_metrics(y, y_loc_sum)
+            self._val_loc_sum_horizon_maes.append(mae_step_loc_sum)
+            losses.update(
+                {
+                    "MAE/val_location_sum": mae_step_loc_sum.mean(), 
+                    "MSE/val_location_sum": mse_step_loc_sum.mean()
                 }
             )
 
@@ -216,11 +232,6 @@ class PVNetSummationLightningModule(pl.LightningModule):
 
         val_horizon_maes = np.mean(self._val_horizon_maes, axis=0)
         self._val_horizon_maes = []
-
-        # We only run this on the first epoch
-        if self.current_epoch==0:
-            val_persistence_horizon_maes = np.mean(self._val_persistence_horizon_maes, axis=0)
-            self._val_persistence_horizon_maes = []
 
         if isinstance(self.logger, pl.loggers.WandbLogger):
             
@@ -235,8 +246,14 @@ class PVNetSummationLightningModule(pl.LightningModule):
             
             wandb.log({"val_horizon_mae_plot": horizon_mae_plot})
 
-            # Create persistence horizon accuracy curve but only on first epoch
+            # Create persistence and lcoation-sum horizon accuracy curve on first epoch
             if self.current_epoch==0:
+                val_persistence_horizon_maes = np.mean(self._val_persistence_horizon_maes, axis=0)
+                del self._val_persistence_horizon_maes
+
+                val_loc_sum_horizon_maes = np.mean(self._val_loc_sum_horizon_maes, axis=0)
+                del self._val_loc_sum_horizon_maes
+
                 persist_horizon_mae_plot = wandb_line_plot(
                     x=np.arange(self.model.forecast_len), 
                     y=val_persistence_horizon_maes,
@@ -244,4 +261,18 @@ class PVNetSummationLightningModule(pl.LightningModule):
                     ylabel="MAE",
                     title="Val persistence horizon loss curve",
                 )
-                wandb.log({"persistence_val_horizon_mae_plot": persist_horizon_mae_plot})
+
+                loc_sum_horizon_mae_plot = wandb_line_plot(
+                    x=np.arange(self.model.forecast_len), 
+                    y=val_loc_sum_horizon_maes,
+                    xlabel="Horizon step",
+                    ylabel="MAE",
+                    title="Val location-sum horizon loss curve",
+                )
+
+                wandb.log(
+                    {
+                        "persistence_val_horizon_mae_plot": persist_horizon_mae_plot,
+                        "location_sum_val_horizon_mae_plot": loc_sum_horizon_mae_plot,
+                    }
+                )
