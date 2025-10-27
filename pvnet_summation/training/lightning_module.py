@@ -246,7 +246,7 @@ class PVNetSummationLightningModule(pl.LightningModule):
             
             wandb.log({"val_horizon_mae_plot": horizon_mae_plot})
 
-            # Create persistence and lcoation-sum horizon accuracy curve on first epoch
+            # Create persistence and location-sum horizon accuracy curve on first epoch
             if self.current_epoch==0:
                 val_persistence_horizon_maes = np.mean(self._val_persistence_horizon_maes, axis=0)
                 del self._val_persistence_horizon_maes
