@@ -202,7 +202,7 @@ class PVNetSummationLightningModule(pl.LightningModule):
         # training run not every epoch
         if self.current_epoch==0:
             
-            # Persistance
+            # Persistence
             y_persist = batch["last_outturn"].unsqueeze(1).expand(-1, self.model.forecast_len)
             mae_step_persist, mse_step_persist = self._calculate_step_metrics(y, y_persist)
             self._val_persistence_horizon_maes.append(mae_step_persist)
