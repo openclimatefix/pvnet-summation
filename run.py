@@ -11,7 +11,7 @@ import hydra
 from omegaconf import DictConfig
 
 from pvnet_summation.training import train
-from pvnet_summation.utils import print_config, maybe_apply_debug_mode
+from pvnet_summation.utils import maybe_apply_debug_mode, print_config
 
 logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
 

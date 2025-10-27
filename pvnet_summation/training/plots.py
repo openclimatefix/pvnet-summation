@@ -26,12 +26,14 @@ def wandb_line_plot(
 def plot_sample_forecasts(
     batch: SumTensorBatch,
     y_hat: torch.Tensor,
+    y_loc_sum: torch.Tensor,
     quantiles: list[float] | None,
 ) -> plt.Figure:
     """Plot a batch of data and the forecast from that batch"""
 
     y = batch["target"].cpu().numpy()
-    y_hat = y_hat.cpu().numpy()    
+    y_hat = y_hat.cpu().numpy()
+    y_loc_sum = y_loc_sum.cpu().numpy()
     times_utc = pd.to_datetime(batch["valid_times"].cpu().numpy().astype("datetime64[ns]"))
     batch_size = y.shape[0]
 
@@ -41,9 +43,18 @@ def plot_sample_forecasts(
 
         ax.plot(times_utc[i], y[i], marker=".", color="k", label=r"$y$")
 
+        ax.plot(
+            times_utc[i],
+            y_loc_sum[i], 
+            marker=".",
+            linestyle="-.",
+            color="r",
+            label=r"$\hat{y}_{loc-sum}$",
+        )
+
         if quantiles is None:
             ax.plot(
-                times_utc[i][-len(y_hat[i]) :],
+                times_utc[i],
                 y_hat[i], 
                 marker=".", 
                 color="r", 
@@ -53,7 +64,7 @@ def plot_sample_forecasts(
             cm = pylab.get_cmap("twilight")
             for nq, q in enumerate(quantiles):
                 ax.plot(
-                    times_utc[i][-len(y_hat[i]) :],
+                    times_utc[i],
                     y_hat[i, :, nq],
                     color=cm(q),
                     label=r"$\hat{y}$" + f"({q})",
