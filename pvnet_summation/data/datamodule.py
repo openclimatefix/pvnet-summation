@@ -84,19 +84,16 @@ class StreamedDataset(PVNetConcurrentDataset):
         """
         super().__init__(config_filename, start_time, end_time)
 
-        nationa_data = (
+        self.national_data = (
             open_generation(
                 zarr_path=self.config.input_data.generation.zarr_path,
             )
             .sel(location_id=0)
             .compute()
         )
-        # Load and nornmalise the national location data to use as target values
 
-        self.nationa_data = nationa_data
-
-        self.longitude = nationa_data.longitude.item()
-        self.latitude = nationa_data.latitude.item()
+        self.longitude = self.national_data.longitude.item()
+        self.latitude = self.national_data.latitude.item()
 
     def _get_sample(self, t0: pd.Timestamp) -> SumNumpySample:
         """Generate a concurrent PVNet sample for given init-time.
@@ -108,7 +105,7 @@ class StreamedDataset(PVNetConcurrentDataset):
         # Get the PVNet input batch
         pvnet_inputs: NumpyBatch = super()._get_sample(t0)
 
-        # Construct an array of valid times for eahc forecast horizon
+        # Construct an array of valid times for each forecast horizon
         valid_times = pd.date_range(
             t0 + minutes(self.config.input_data.generation.time_resolution_minutes),
             t0 + minutes(self.config.input_data.generation.interval_end_minutes),
@@ -117,12 +114,12 @@ class StreamedDataset(PVNetConcurrentDataset):
 
         # Get the region and national capacities
         location_capacities = pvnet_inputs["capacity_mwp"]
-        total_capacity = self.nationa_data.sel(time_utc=t0).capacity_mwp.item()
+        total_capacity = self.national_data.sel(time_utc=t0).capacity_mwp.item()
 
         # Calculate requited inputs for the sample
         relative_capacities = location_capacities / total_capacity
-        target = self.nationa_data.sel(time_utc=valid_times).values / total_capacity
-        last_outturn = self.nationa_data.sel(time_utc=t0).values / total_capacity
+        target = self.national_data.sel(time_utc=valid_times).values / total_capacity
+        last_outturn = self.national_data.sel(time_utc=t0).values / total_capacity
 
         return construct_sample(
             pvnet_inputs=pvnet_inputs,
@@ -248,7 +245,7 @@ class PresavedDataset(Dataset):
     """Dataset for loading pre-saved PVNet predictions from disk"""
 
     def __init__(self, sample_dir: str):
-        """ "Dataset for loading pre-saved PVNet predictions from disk.
+        """Dataset for loading pre-saved PVNet predictions from disk.
 
         Args:
             sample_dir: The directory containing the saved samples
