@@ -19,10 +19,6 @@ from typing_extensions import override
 SumNumpySample: TypeAlias = dict[str, np.ndarray | NumpyBatch]
 SumTensorBatch: TypeAlias = dict[str, torch.Tensor]
 
-# def get_gb_centroid_lon_lat(ds_generation_national: xr.Dataset) -> tuple[float, float]:
-#     """Get the longitude and latitude of the centroid of Great Britain"""
-#     ds_generation = open_generation(zarr_path=generation_zarr_path).sel(location_id=0)
-#     return ds_generation.longitude.item(), ds_generation.latitude.item()
 
 def construct_sample(
     pvnet_inputs: NumpyBatch,
@@ -43,9 +39,9 @@ def construct_sample(
         longitude: The longitude of the national centroid
         latitude: The latitude of the national centroid
         last_outturn: The previous national outturn. This is only needed during training.
-        
+
     """
-    
+
     azimuth, elevation = calculate_azimuth_and_elevation(valid_times, longitude, latitude)
 
     sample = {
@@ -88,16 +84,19 @@ class StreamedDataset(PVNetConcurrentDataset):
         """
         super().__init__(config_filename, start_time, end_time)
 
-        nationa_data = open_generation(
-            zarr_path=self.config.input_data.generation.zarr_path,
-        ).sel(location_id=0).compute()
+        nationa_data = (
+            open_generation(
+                zarr_path=self.config.input_data.generation.zarr_path,
+            )
+            .sel(location_id=0)
+            .compute()
+        )
         # Load and nornmalise the national location data to use as target values
-        
+
         self.nationa_data = nationa_data
 
         self.longitude = nationa_data.longitude.item()
         self.latitude = nationa_data.latitude.item()
-
 
     def _get_sample(self, t0: pd.Timestamp) -> SumNumpySample:
         """Generate a concurrent PVNet sample for given init-time.
@@ -106,20 +105,20 @@ class StreamedDataset(PVNetConcurrentDataset):
             t0: init-time for sample
         """
 
-        # Get the PVNet input batch
+        # Get the PVNet input batch
         pvnet_inputs: NumpyBatch = super()._get_sample(t0)
 
         # Construct an array of valid times for eahc forecast horizon
         valid_times = pd.date_range(
-            t0+minutes(self.config.input_data.generation.time_resolution_minutes), 
-            t0+minutes(self.config.input_data.generation.interval_end_minutes),
-            freq=minutes(self.config.input_data.generation.time_resolution_minutes)
+            t0 + minutes(self.config.input_data.generation.time_resolution_minutes),
+            t0 + minutes(self.config.input_data.generation.interval_end_minutes),
+            freq=minutes(self.config.input_data.generation.time_resolution_minutes),
         )
 
         # Get the region and national capacities
         location_capacities = pvnet_inputs["capacity_mwp"]
         total_capacity = self.nationa_data.sel(time_utc=t0).capacity_mwp.item()
-        
+
         # Calculate requited inputs for the sample
         relative_capacities = location_capacities / total_capacity
         target = self.nationa_data.sel(time_utc=valid_times).values / total_capacity
@@ -166,8 +165,8 @@ class StreamedDataModule(LightningDataModule):
             val_period: Date range filter for val dataloader.
             num_workers: Number of workers to use in multiprocess batch loading.
             prefetch_factor: Number of data will be prefetched at the end of each worker process.
-            persistent_workers: If True, the data loader will not shut down the worker processes 
-                after a dataset has been consumed once. This allows to maintain the workers Dataset 
+            persistent_workers: If True, the data loader will not shut down the worker processes
+                after a dataset has been consumed once. This allows to maintain the workers Dataset
                 instances alive.
             seed: Random seed used in shuffling datasets.
             dataset_pickle_dir: Directory in which the val and train set will be presaved as
@@ -191,7 +190,7 @@ class StreamedDataModule(LightningDataModule):
             worker_init_fn=None,
             prefetch_factor=prefetch_factor,
             persistent_workers=persistent_workers,
-            multiprocessing_context="spawn" if num_workers>0 else None,
+            multiprocessing_context="spawn" if num_workers > 0 else None,
         )
 
     def setup(self, stage: str | None = None):
@@ -219,11 +218,11 @@ class StreamedDataModule(LightningDataModule):
         # Prepare the train dataset
         self.train_dataset = StreamedDataset(self.configuration, *self.train_period)
 
-        # Prepare and pre-shuffle the val dataset and set seed for reproducibility
+        # Prepare and pre-shuffle the val dataset and set seed for reproducibility
         val_dataset = StreamedDataset(self.configuration, *self.val_period)
         shuffled_indices = np.random.default_rng(seed=self.seed).permutation(len(val_dataset))
         self.val_dataset = Subset(val_dataset, shuffled_indices)
-    
+
         if self.dataset_pickle_dir is not None:
             self.train_dataset.presave_pickle(train_dataset_path)
             self.train_dataset.presave_pickle(val_dataset_path)
@@ -249,8 +248,8 @@ class PresavedDataset(Dataset):
     """Dataset for loading pre-saved PVNet predictions from disk"""
 
     def __init__(self, sample_dir: str):
-        """"Dataset for loading pre-saved PVNet predictions from disk.
-        
+        """ "Dataset for loading pre-saved PVNet predictions from disk.
+
         Args:
             sample_dir: The directory containing the saved samples
         """
@@ -281,8 +280,8 @@ class PresavedDataModule(LightningDataModule):
             batch_size: Batch size.
             num_workers: Number of workers to use in multiprocess batch loading.
             prefetch_factor: Number of data will be prefetched at the end of each worker process.
-            persistent_workers: If True, the data loader will not shut down the worker processes 
-                after a dataset has been consumed once. This allows to maintain the workers Dataset 
+            persistent_workers: If True, the data loader will not shut down the worker processes
+                after a dataset has been consumed once. This allows to maintain the workers Dataset
                 instances alive.
         """
         super().__init__()
@@ -300,7 +299,7 @@ class PresavedDataModule(LightningDataModule):
             worker_init_fn=None,
             prefetch_factor=prefetch_factor,
             persistent_workers=persistent_workers,
-            multiprocessing_context="spawn" if num_workers>0 else None,
+            multiprocessing_context="spawn" if num_workers > 0 else None,
         )
 
     def train_dataloader(self, shuffle: bool = True) -> DataLoader:
