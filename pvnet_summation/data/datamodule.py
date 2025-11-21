@@ -8,11 +8,10 @@ import numpy as np
 import pandas as pd
 import torch
 from lightning.pytorch import LightningDataModule
-from ocf_data_sampler.load.gsp import get_gsp_boundaries, open_gsp
+from ocf_data_sampler.load.generation import open_generation
 from ocf_data_sampler.numpy_sample.common_types import NumpyBatch
 from ocf_data_sampler.numpy_sample.sun_position import calculate_azimuth_and_elevation
-from ocf_data_sampler.select.geospatial import osgb_to_lon_lat
-from ocf_data_sampler.torch_datasets.datasets.pvnet_uk import PVNetUKConcurrentDataset
+from ocf_data_sampler.torch_datasets.pvnet_dataset import PVNetConcurrentDataset
 from ocf_data_sampler.utils import minutes
 from torch.utils.data import DataLoader, Dataset, Subset, default_collate
 from typing_extensions import override
@@ -20,34 +19,34 @@ from typing_extensions import override
 SumNumpySample: TypeAlias = dict[str, np.ndarray | NumpyBatch]
 SumTensorBatch: TypeAlias = dict[str, torch.Tensor]
 
-def get_gb_centroid_lon_lat() -> tuple[float, float]:
-    """Get the longitude and latitude of the centroid of Great Britain"""
-    row = get_gsp_boundaries("20250109").loc[0]
-    x_osgb = row.x_osgb.item()
-    y_osgb = row.y_osgb.item()
-    return osgb_to_lon_lat(x_osgb, y_osgb)
-
-LON, LAT = get_gb_centroid_lon_lat()
-
+# def get_gb_centroid_lon_lat(ds_generation_national: xr.Dataset) -> tuple[float, float]:
+#     """Get the longitude and latitude of the centroid of Great Britain"""
+#     ds_generation = open_generation(zarr_path=generation_zarr_path).sel(location_id=0)
+#     return ds_generation.longitude.item(), ds_generation.latitude.item()
 
 def construct_sample(
     pvnet_inputs: NumpyBatch,
     valid_times: pd.DatetimeIndex,
     relative_capacities: np.ndarray,
     target: np.ndarray | None,
+    longitude: float,
+    latitude: float,
     last_outturn: float | None = None,
 ) -> SumNumpySample:
     """Construct an input sample for the summation model
 
     Args:
-        pvnet_inputs: The PVNet batch for all GSPs
+        pvnet_inputs: The PVNet batch for all locations
         valid_times: An array of valid-times for the forecast
-        relative_capacities: Array of capacities of all GSPs normalised by the total capacity
+        relative_capacities: Array of capacities of all locations normalised by the total capacity
         target: The target national outturn. This is only needed during training.
+        longitude: The longitude of the national centroid
+        latitude: The latitude of the national centroid
         last_outturn: The previous national outturn. This is only needed during training.
+        
     """
     
-    azimuth, elevation = calculate_azimuth_and_elevation(valid_times, LON, LAT)
+    azimuth, elevation = calculate_azimuth_and_elevation(valid_times, longitude, latitude)
 
     sample = {
         # NumpyBatch object with batch size = num_locations
@@ -71,7 +70,7 @@ def construct_sample(
     return sample
 
 
-class StreamedDataset(PVNetUKConcurrentDataset):
+class StreamedDataset(PVNetConcurrentDataset):
     """A torch dataset for creating concurrent PVNet inputs and national targets."""
 
     def __init__(
@@ -87,17 +86,18 @@ class StreamedDataset(PVNetUKConcurrentDataset):
             start_time: Limit the init-times to be after this
             end_time: Limit the init-times to be before this
         """
-        super().__init__(config_filename, start_time, end_time, gsp_ids=None)
+        super().__init__(config_filename, start_time, end_time)
 
-        # Load and nornmalise the national GSP data to use as target values
-        self.national_gsp_data = (
-            open_gsp(
-                zarr_path=self.config.input_data.gsp.zarr_path, 
-                boundaries_version=self.config.input_data.gsp.boundaries_version
-            )
-            .sel(gsp_id=0)
-            .compute()
-        )
+        nationa_data = open_generation(
+            zarr_path=self.config.input_data.generation.zarr_path,
+        ).sel(location_id=0).compute()
+        # Load and nornmalise the national location data to use as target values
+        
+        self.nationa_data = nationa_data
+
+        self.longitude = nationa_data.longitude.item()
+        self.latitude = nationa_data.latitude.item()
+
 
     def _get_sample(self, t0: pd.Timestamp) -> SumNumpySample:
         """Generate a concurrent PVNet sample for given init-time.
@@ -111,25 +111,27 @@ class StreamedDataset(PVNetUKConcurrentDataset):
 
         # Construct an array of valid times for eahc forecast horizon
         valid_times = pd.date_range(
-            t0+minutes(self.config.input_data.gsp.time_resolution_minutes), 
-            t0+minutes(self.config.input_data.gsp.interval_end_minutes),
-            freq=minutes(self.config.input_data.gsp.time_resolution_minutes)
+            t0+minutes(self.config.input_data.generation.time_resolution_minutes), 
+            t0+minutes(self.config.input_data.generation.interval_end_minutes),
+            freq=minutes(self.config.input_data.generation.time_resolution_minutes)
         )
 
-        # Get the GSP and national capacities
-        location_capacities = pvnet_inputs["gsp_effective_capacity_mwp"]
-        total_capacity = self.national_gsp_data.sel(time_utc=t0).effective_capacity_mwp.item()
+        # Get the region and national capacities
+        location_capacities = pvnet_inputs["capacity_mwp"]
+        total_capacity = self.nationa_data.sel(time_utc=t0).capacity_mwp.item()
         
         # Calculate requited inputs for the sample
         relative_capacities = location_capacities / total_capacity
-        target = self.national_gsp_data.sel(time_utc=valid_times).values / total_capacity
-        last_outturn = self.national_gsp_data.sel(time_utc=t0).values / total_capacity
+        target = self.nationa_data.sel(time_utc=valid_times).values / total_capacity
+        last_outturn = self.nationa_data.sel(time_utc=t0).values / total_capacity
 
         return construct_sample(
             pvnet_inputs=pvnet_inputs,
             valid_times=valid_times,
             relative_capacities=relative_capacities,
             target=target,
+            longitude=self.longitude,
+            latitude=self.latitude,
             last_outturn=last_outturn,
         )
 
