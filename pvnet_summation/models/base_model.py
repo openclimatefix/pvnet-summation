@@ -28,7 +28,6 @@ def santize_datamodule(config: dict) -> dict:
     """Create new datamodule config which only keeps the details required for inference"""
     return {"pvnet_model": config["pvnet_model"]}
 
-
 def download_from_hf(
     repo_id: str,
     filename: str | list[str],
@@ -37,6 +36,7 @@ def download_from_hf(
     force_download: bool,
     max_retries: int = 5,
     wait_time: int = 10,
+    token: bool | str | None = None,
 ) -> str | list[str]:
     """Tries to download one or more files from HuggingFace up to max_retries times.
 
@@ -48,6 +48,9 @@ def download_from_hf(
         force_download: Whether to force a new download
         max_retries: Maximum number of retry attempts
         wait_time: Wait time (in seconds) before retrying
+        token:
+            HF authentication token. If True, the token is read from the HuggingFace config folder.
+            If a string, it is used as the authentication token.
 
     Returns:
         The local file path of the downloaded file(s)
@@ -60,6 +63,7 @@ def download_from_hf(
                 revision=revision,
                 cache_dir=cache_dir,
                 force_download=force_download,
+                token=token,
             )
 
             if isinstance(filename, list):
@@ -92,6 +96,7 @@ class HuggingfaceMixin:
         cache_dir: str | None = None,
         force_download: bool = False,
         strict: bool = True,
+        token: bool | str | None = None,
     ) -> "BaseModel":
         """Load Pytorch pretrained weights and return the loaded model."""
 
@@ -110,6 +115,7 @@ class HuggingfaceMixin:
                 force_download=force_download,
                 max_retries=5,
                 wait_time=10,
+                token=token,
             )
 
         with open(config_file, "r") as f:
@@ -128,6 +134,7 @@ class HuggingfaceMixin:
         revision: str,
         cache_dir: str | None = None,
         force_download: bool = False,
+        token: bool | str | None = None,
     ) -> str:
         """Load data config file."""
         if os.path.isdir(model_id):
@@ -143,6 +150,7 @@ class HuggingfaceMixin:
                 force_download=force_download,
                 max_retries=5,
                 wait_time=10,
+                token=token,
             )
 
         return datamodule_config_file
