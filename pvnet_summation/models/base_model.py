@@ -1,8 +1,6 @@
 """Base model for all PVNet submodels"""
-import logging
 import os
 import shutil
-import time
 from importlib.metadata import version
 from math import prod
 from pathlib import Path
@@ -10,8 +8,9 @@ from pathlib import Path
 import hydra
 import torch
 import yaml
-from huggingface_hub import ModelCard, ModelCardData, snapshot_download
+from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.hf_api import HfApi
+from pvnet.models.base_model import download_from_hf
 from safetensors.torch import load_file, save_file
 
 from pvnet_summation.data.datamodule import SumTensorBatch
@@ -29,58 +28,6 @@ def santize_datamodule(config: dict) -> dict:
     return {"pvnet_model": config["pvnet_model"]}
 
 
-def download_from_hf(
-    repo_id: str,
-    filename: str | list[str],
-    revision: str,
-    cache_dir: str | None,
-    force_download: bool,
-    max_retries: int = 5,
-    wait_time: int = 10,
-) -> str | list[str]:
-    """Tries to download one or more files from HuggingFace up to max_retries times.
-
-    Args:
-        repo_id: HuggingFace repo ID
-        filename: Name of the file(s) to download
-        revision: Specific model revision
-        cache_dir: Cache directory
-        force_download: Whether to force a new download
-        max_retries: Maximum number of retry attempts
-        wait_time: Wait time (in seconds) before retrying
-
-    Returns:
-        The local file path of the downloaded file(s)
-    """
-    for attempt in range(1, max_retries + 1):
-        try:
-            save_dir = snapshot_download(
-                repo_id=repo_id,
-                allow_patterns=filename,
-                revision=revision,
-                cache_dir=cache_dir,
-                force_download=force_download,
-            )
-
-            if isinstance(filename, list):
-                return [f"{save_dir}/{f}" for f in filename]
-            else:
-                return f"{save_dir}/{filename}"
-        
-        except Exception as e:
-            if attempt == max_retries:
-                raise Exception(
-                    f"Failed to download {filename} from {repo_id} after {max_retries} attempts."
-                ) from e
-            logging.warning(
-                (
-                    f"Attempt {attempt}/{max_retries} failed to download {filename} "
-                    f"from {repo_id}. Retrying in {wait_time} seconds..."
-                )
-            )
-            time.sleep(wait_time)
-
-
 class HuggingfaceMixin:
     """Mixin for saving and loading model to and from huggingface"""
 
@@ -92,6 +39,7 @@ class HuggingfaceMixin:
         cache_dir: str | None = None,
         force_download: bool = False,
         strict: bool = True,
+        token: bool | str | None = None,
     ) -> "BaseModel":
         """Load Pytorch pretrained weights and return the loaded model."""
 
@@ -110,6 +58,7 @@ class HuggingfaceMixin:
                 force_download=force_download,
                 max_retries=5,
                 wait_time=10,
+                token=token,
             )
 
         with open(config_file, "r") as f:
@@ -128,6 +77,7 @@ class HuggingfaceMixin:
         revision: str,
         cache_dir: str | None = None,
         force_download: bool = False,
+        token: bool | str | None = None,
     ) -> str:
         """Load data config file."""
         if os.path.isdir(model_id):
@@ -143,6 +93,7 @@ class HuggingfaceMixin:
                 force_download=force_download,
                 max_retries=5,
                 wait_time=10,
+                token=token,
             )
 
         return datamodule_config_file
