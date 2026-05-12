@@ -8,6 +8,7 @@ import logging
 import sys
 
 import hydra
+import torch
 from omegaconf import DictConfig
 
 from pvnet_summation.training import train
@@ -15,7 +16,7 @@ from pvnet_summation.utils import maybe_apply_debug_mode, print_config
 
 logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
 
-
+torch.set_float32_matmul_precision('medium')
 
 @hydra.main(config_path="configs/", config_name="config.yaml", version_base="1.2")
 def main(config: DictConfig) -> None:
