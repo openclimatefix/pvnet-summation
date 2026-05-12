@@ -7,8 +7,8 @@ This file can be run for example using
 import logging
 import sys
 
-import torch
 import hydra
+import torch
 from omegaconf import DictConfig
 
 from pvnet_summation.training import train
