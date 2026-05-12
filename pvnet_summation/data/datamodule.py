@@ -82,8 +82,9 @@ class StreamedDataset(PVNetConcurrentDataset):
             start_time: Limit the init-times to be after this
             end_time: Limit the init-times to be before this
         """
-        super().__init__(config_filename, start_time, end_time)
-
+        time_periods = [(start_time, end_time)] if start_time or end_time else None
+        super().__init__(config_filename, time_periods=time_periods)
+        
         self.national_data = (
             open_generation(
                 zarr_path=self.config.input_data.generation.zarr_path,
