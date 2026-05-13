@@ -16,6 +16,7 @@ from pvnet_summation.utils import maybe_apply_debug_mode, print_config
 
 logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
 
+# Use TF32 tensor cores for float32 matmul - approx 2.5 times faster on A6000.
 torch.set_float32_matmul_precision('medium')
 
 @hydra.main(config_path="configs/", config_name="config.yaml", version_base="1.2")
