@@ -72,17 +72,15 @@ class StreamedDataset(PVNetConcurrentDataset):
     def __init__(
         self,
         config_filename: str,
-        start_time: str | None = None,
-        end_time: str | None = None,
+        time_periods: list[tuple[str | None, str | None]] | None = None,
     ) -> None:
         """A torch dataset for creating concurrent PVNet inputs and national targets.
 
         Args:
             config_filename: Path to the configuration file
-            start_time: Limit the init-times to be after this
-            end_time: Limit the init-times to be before this
+            time_periods: List of (start, end) time period tuples to filter init-times
         """
-        super().__init__(config_filename, start_time, end_time)
+        super().__init__(config_filename, time_periods=time_periods)
 
         self.national_data = (
             open_generation(
@@ -146,8 +144,8 @@ class StreamedDataModule(LightningDataModule):
     def __init__(
         self,
         configuration: str,
-        train_period: list[str | None] = [None, None],
-        val_period: list[str | None] = [None, None],
+        train_period: list[tuple[str | None, str | None]] | None = None,
+        val_period: list[tuple[str | None, str | None]] | None = None,
         num_workers: int = 0,
         prefetch_factor: int | None = None,
         persistent_workers: bool = False,
@@ -158,8 +156,8 @@ class StreamedDataModule(LightningDataModule):
 
         Args:
             configuration: Path to ocf-data-sampler configuration file.
-            train_period: Date range filter for train dataloader.
-            val_period: Date range filter for val dataloader.
+            train_period: Time period filters for train dataloader as list of (start, end) tuples.
+            val_period: Time period filters for val dataloader as list of (start, end) tuples.
             num_workers: Number of workers to use in multiprocess batch loading.
             prefetch_factor: Number of data will be prefetched at the end of each worker process.
             persistent_workers: If True, the data loader will not shut down the worker processes
@@ -213,10 +211,10 @@ class StreamedDataModule(LightningDataModule):
                     )
 
         # Prepare the train dataset
-        self.train_dataset = StreamedDataset(self.configuration, *self.train_period)
+        self.train_dataset = StreamedDataset(self.configuration, time_periods=self.train_period)
 
         # Prepare and pre-shuffle the val dataset and set seed for reproducibility
-        val_dataset = StreamedDataset(self.configuration, *self.val_period)
+        val_dataset = StreamedDataset(self.configuration, time_periods=self.val_period)
         shuffled_indices = np.random.default_rng(seed=self.seed).permutation(len(val_dataset))
         self.val_dataset = Subset(val_dataset, shuffled_indices)
 
