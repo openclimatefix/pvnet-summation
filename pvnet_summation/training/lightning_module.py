@@ -13,6 +13,26 @@ from pvnet_summation.models.base_model import BaseModel
 from pvnet_summation.optimizers import AbstractOptimizer
 from pvnet_summation.training.plots import plot_sample_forecasts, wandb_line_plot
 
+# Import boosting models for isinstance checks — lazy to avoid hard deps
+try:
+    from pvnet_summation.models.lgbm_model import LightGBMModel
+except ImportError:
+    LightGBMModel = None
+
+try:
+    from pvnet_summation.models.xgb_model import XGBModel
+except ImportError:
+    XGBModel = None
+
+
+def _is_boosting_model(model: BaseModel) -> bool:
+    checks = []
+    if LightGBMModel is not None:
+        checks.append(isinstance(model, LightGBMModel))
+    if XGBModel is not None:
+        checks.append(isinstance(model, XGBModel))
+    return any(checks)
+
 
 class PVNetSummationLightningModule(pl.LightningModule):
     """Lightning module for training PVNet models"""
@@ -32,128 +52,139 @@ class PVNetSummationLightningModule(pl.LightningModule):
 
         self.model = model
         self._optimizer = optimizer
-
-        # Model must have lr to allow tuning
-        # This setting is only used when lr is tuned with callback
         self.lr = None
 
+        self._boosting = _is_boosting_model(model)
+
+        # Accumulators for boosting fit
+        if self._boosting:
+            self._X_accum: list[np.ndarray] = []
+            self._y_accum: list[np.ndarray] = []
+
+    # ------------------------------------------------------------------
+    # Optimizer (no-op dummy for boosting models)
+    # ------------------------------------------------------------------
+
+    def configure_optimizers(self):
+        if self._boosting:
+            # Return a no-op optimizer — we never call .step() on it
+            return torch.optim.SGD([self.model._dummy], lr=0.0)
+        if self.lr is not None:
+            self._optimizer.lr = self.lr
+        return self._optimizer(self.model)
+
+    # ------------------------------------------------------------------
+    # Loss helpers (shared)
+    # ------------------------------------------------------------------
 
     def _calculate_quantile_loss(self, y_quantiles: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        """Calculate quantile loss.
-
-        Note:
-            Implementation copied from:
-                https://pytorch-forecasting.readthedocs.io/en/stable/_modules/pytorch_forecasting
-                /metrics/quantile.html#QuantileLoss.loss
-
-        Args:
-            y_quantiles: Quantile prediction of network
-            y: Target values
-
-        Returns:
-            Quantile loss
-        """
         losses = []
         for i, q in enumerate(self.model.output_quantiles):
             errors = y - y_quantiles[..., i]
             losses.append(torch.max((q - 1) * errors, q * errors).unsqueeze(-1))
         losses = 2 * torch.cat(losses, dim=2)
-
         return losses.mean()
-    
-    def configure_optimizers(self):
-        """Configure the optimizers using learning rate found with LR finder if used"""
-        if self.lr is not None:
-            # Use learning rate found by learning rate finder callback
-            self._optimizer.lr = self.lr
-        return self._optimizer(self.model)
 
     def _calculate_common_losses(
-        self, 
+        self,
         y: torch.Tensor,
         y_hat: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
-        """Calculate losses common to train, and val"""
-
         losses = {}
-
         if self.model.use_quantile_regression:
             losses["quantile_loss"] = self._calculate_quantile_loss(y_hat, y)
             y_hat = self.model._quantiles_to_prediction(y_hat)
-
-        losses.update({"MSE":  F.mse_loss(y_hat, y), "MAE": F.l1_loss(y_hat, y)})
-
+        losses.update({"MSE": F.mse_loss(y_hat, y), "MAE": F.l1_loss(y_hat, y)})
         return losses
-    
+
+    # ------------------------------------------------------------------
+    # Training
+    # ------------------------------------------------------------------
+
     def training_step(self, batch: TensorBatch, batch_idx: int) -> torch.Tensor:
-        """Run training step"""
+        if self._boosting:
+            return self._boosting_training_step(batch)
+        return self._neural_training_step(batch)
 
+    def _neural_training_step(self, batch: TensorBatch) -> torch.Tensor:
         y_hat = self.model(batch)
-
         y = batch["target"]
-
         losses = self._calculate_common_losses(y, y_hat)
         losses = {f"{k}/train": v for k, v in losses.items()}
-
         self.log_dict(losses, on_step=True, on_epoch=True)
-
         if self.model.use_quantile_regression:
-            opt_target = losses["quantile_loss/train"]
-        else:
-            opt_target = losses["MAE/train"]
-        return opt_target
-    
+            return losses["quantile_loss/train"]
+        return losses["MAE/train"]
+
+    def _boosting_training_step(self, batch: TensorBatch) -> torch.Tensor:
+        """Accumulate data — actual fit happens in on_train_epoch_end."""
+        X, y = self.model._batch_to_numpy(batch)
+        self._X_accum.append(X)
+        self._y_accum.append(y)
+        # Return zero loss — Lightning requires a tensor
+        return torch.tensor(0.0, requires_grad=True, device=self.model._dummy.device)
+
+    def on_train_epoch_end(self) -> None:
+        if not self._boosting:
+            return
+        if self.model._is_fitted:
+            # Already fitted — stop training
+            self.trainer.should_stop = True
+            return
+
+        X = np.concatenate(self._X_accum, axis=0)
+        y = np.concatenate(self._y_accum, axis=0)
+        self._X_accum = []
+        self._y_accum = []
+
+        print(f"\nFitting {type(self.model).__name__} on {X.shape[0]} samples...")
+        self.model.fit(X, y)
+        print("Fit complete.")
+
+        # Stop after one epoch
+        self.trainer.should_stop = True
+
+    # ------------------------------------------------------------------
+    # Validation (identical for both model types)
+    # ------------------------------------------------------------------
+
     def _calculate_val_losses(
-        self, 
-        y: torch.Tensor, 
+        self,
+        y: torch.Tensor,
         y_hat: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
-        """Calculate additional losses only run in validation"""
-
         losses = {}
-
         if self.model.use_quantile_regression:
             metric_name = "val_fraction_below/fraction_below_{:.2f}_quantile"
-            # Add fraction below each quantile for calibration
             for i, quantile in enumerate(self.model.output_quantiles):
                 below_quant = y <= y_hat[..., i]
-                # Mask values small values, which are dominated by night
                 mask = y >= 0.01
                 losses[metric_name.format(quantile)] = below_quant[mask].float().mean()
-
         return losses
 
     def _calculate_step_metrics(
-        self, 
-        y: torch.Tensor, 
-        y_hat: torch.Tensor, 
-    ) -> tuple[np.array, np.array]:
-        """Calculate the MAE and MSE at each forecast step"""
-
+        self,
+        y: torch.Tensor,
+        y_hat: torch.Tensor,
+    ) -> tuple[np.ndarray, np.ndarray]:
         mae_each_step = torch.mean(torch.abs(y_hat - y), dim=0).cpu().numpy()
         mse_each_step = torch.mean((y_hat - y) ** 2, dim=0).cpu().numpy()
-       
         return mae_each_step, mse_each_step
-    
-    def on_validation_epoch_start(self):
-        """Run at start of val period"""
-        # Set up stores which we will fill during validation
-        self._val_horizon_maes: list[np.array] = []
-        if self.current_epoch==0:
-            self._val_persistence_horizon_maes: list[np.array] = []
-            self._val_loc_sum_horizon_maes: list[np.array] = []
-        
-        # Plot some sample forecasts
-        val_dataset = self.trainer.val_dataloaders.dataset
 
+    def on_validation_epoch_start(self):
+        self._val_horizon_maes: list[np.ndarray] = []
+        if self.current_epoch == 0:
+            self._val_persistence_horizon_maes: list[np.ndarray] = []
+            self._val_loc_sum_horizon_maes: list[np.ndarray] = []
+
+        val_dataset = self.trainer.val_dataloaders.dataset
         plots_per_figure = 16
         num_figures = 2
 
         for plot_num in range(num_figures):
             idxs = np.arange(plots_per_figure) + plot_num * plots_per_figure
-            idxs = idxs[idxs<len(val_dataset)]
-
-            if len(idxs)==0:
+            idxs = idxs[idxs < len(val_dataset)]
+            if len(idxs) == 0:
                 continue
 
             batch = default_collate([val_dataset[i] for i in idxs])
@@ -162,114 +193,91 @@ class PVNetSummationLightningModule(pl.LightningModule):
                 y_hat = self.model(batch)
 
             y_loc_sum = self.model.sum_of_locations(batch)
-            
             fig = plot_sample_forecasts(batch, y_hat, y_loc_sum, self.model.output_quantiles)
-
-            plot_name = f"val_forecast_samples/sample_set_{plot_num}"
-
-            self.logger.experiment.log({plot_name: wandb.Image(fig)})
-
+            self.logger.experiment.log(
+                {f"val_forecast_samples/sample_set_{plot_num}": wandb.Image(fig)}
+            )
             plt.close(fig)
 
     def validation_step(self, batch: TensorBatch, batch_idx: int) -> None:
-        """Run validation step"""
-
         y_hat = self.model(batch)
-
         y = batch["target"]
 
         losses = self._calculate_common_losses(y, y_hat)
         losses = {f"{k}/val": v for k, v in losses.items()}
-
         losses.update(self._calculate_val_losses(y, y_hat))
 
-        # Calculate the horizon MAE/MSE metrics
         if self.model.use_quantile_regression:
             y_hat_mid = self.model._quantiles_to_prediction(y_hat)
         else:
             y_hat_mid = y_hat
 
         mae_step, mse_step = self._calculate_step_metrics(y, y_hat_mid)
-
-        # Store to make horizon-MAE plot
         self._val_horizon_maes.append(mae_step)
 
-        # Also add each step to logged metrics
         losses.update({f"val_step_MAE/step_{i:03}": m for i, m in enumerate(mae_step)})
         losses.update({f"val_step_MSE/step_{i:03}": m for i, m in enumerate(mse_step)})
 
-        # Calculate the persistence and sum-of-locations losses - we only need to do this once per 
-        # training run not every epoch
-        if self.current_epoch==0:
-            
-            # Persistence
+        if self.current_epoch == 0:
             y_persist = batch["last_outturn"].unsqueeze(1).expand(-1, self.model.forecast_len)
             mae_step_persist, mse_step_persist = self._calculate_step_metrics(y, y_persist)
             self._val_persistence_horizon_maes.append(mae_step_persist)
             losses.update(
                 {
-                    "MAE/val_persistence": mae_step_persist.mean(), 
-                    "MSE/val_persistence": mse_step_persist.mean()
+                    "MAE/val_persistence": mae_step_persist.mean(),
+                    "MSE/val_persistence": mse_step_persist.mean(),
                 }
             )
 
-            # Sum of Locations
             y_loc_sum = self.model.sum_of_locations(batch)
             mae_step_loc_sum, mse_step_loc_sum = self._calculate_step_metrics(y, y_loc_sum)
             self._val_loc_sum_horizon_maes.append(mae_step_loc_sum)
             losses.update(
                 {
-                    "MAE/val_location_sum": mae_step_loc_sum.mean(), 
-                    "MSE/val_location_sum": mse_step_loc_sum.mean()
+                    "MAE/val_location_sum": mae_step_loc_sum.mean(),
+                    "MSE/val_location_sum": mse_step_loc_sum.mean(),
                 }
             )
 
-        # Log the metrics
         self.log_dict(losses, on_step=False, on_epoch=True)
 
     def on_validation_epoch_end(self) -> None:
-        """Run on epoch end"""
-
         val_horizon_maes = np.mean(self._val_horizon_maes, axis=0)
         self._val_horizon_maes = []
 
         if isinstance(self.logger, pl.loggers.WandbLogger):
-            
-            # Create the horizon accuracy curve
             horizon_mae_plot = wandb_line_plot(
-                x=np.arange(self.model.forecast_len), 
+                x=np.arange(self.model.forecast_len),
                 y=val_horizon_maes,
                 xlabel="Horizon step",
                 ylabel="MAE",
                 title="Val horizon loss curve",
             )
-            
             wandb.log({"val_horizon_mae_plot": horizon_mae_plot})
 
-            # Create persistence and location-sum horizon accuracy curve on first epoch
-            if self.current_epoch==0:
-                val_persistence_horizon_maes = np.mean(self._val_persistence_horizon_maes, axis=0)
+            if self.current_epoch == 0:
+                val_persistence_horizon_maes = np.mean(
+                    self._val_persistence_horizon_maes, axis=0
+                )
                 del self._val_persistence_horizon_maes
 
                 val_loc_sum_horizon_maes = np.mean(self._val_loc_sum_horizon_maes, axis=0)
                 del self._val_loc_sum_horizon_maes
 
                 persist_horizon_mae_plot = wandb_line_plot(
-                    x=np.arange(self.model.forecast_len), 
+                    x=np.arange(self.model.forecast_len),
                     y=val_persistence_horizon_maes,
                     xlabel="Horizon step",
                     ylabel="MAE",
                     title="Val persistence horizon loss curve",
                 )
-
                 loc_sum_horizon_mae_plot = wandb_line_plot(
-                    x=np.arange(self.model.forecast_len), 
+                    x=np.arange(self.model.forecast_len),
                     y=val_loc_sum_horizon_maes,
                     xlabel="Horizon step",
                     ylabel="MAE",
                     title="Val location-sum horizon loss curve",
                 )
-
                 wandb.log(
                     {
                         "persistence_val_horizon_mae_plot": persist_horizon_mae_plot,
