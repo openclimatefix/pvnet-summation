@@ -2,3 +2,4 @@
 from .base_model import BaseModel
 from .dense_model import DenseModel
 from .lgbm_model import LightGBMModel
+from .xgb_model import XGBModel
