@@ -13,6 +13,7 @@ from pvnet_summation.data.datamodule import SumTensorBatch
 from pvnet_summation.models.base_model import BaseModel
 from pvnet_summation.utils import PYTORCH_WEIGHTS_NAME
 
+
 class LightGBMModel(BaseModel):
     """LightGBM summation model.
 
@@ -35,6 +36,24 @@ class LightGBMModel(BaseModel):
         min_child_samples: int = 20,
         predict_difference_from_sum: bool = False,
     ):
+        """LightGBM summation model.
+
+        Args:
+            output_quantiles: A list of float (0.0, 1.0) quantiles to predict values for. If set to
+                None the output is a single value.
+            num_input_locations: The number of input locations (e.g. number of GSPs)
+            input_quantiles: A list of float (0.0, 1.0) quantiles which PVNet predicts for. If set
+                to None we assume PVNet predicts a single value
+            history_minutes: Length of the GSP history period in minutes
+            forecast_minutes: Length of the GSP forecast period in minutes
+            interval_minutes: The interval in minutes between each timestep in the data
+            n_estimators: Number of boosting rounds
+            num_leaves: Maximum number of leaves per tree
+            learning_rate: Boosting learning rate
+            min_child_samples: Minimum samples required in a leaf node
+            predict_difference_from_sum: Whether to predict the difference from the sum of
+                locations, else the total is predicted directly
+        """
         super().__init__(
             output_quantiles,
             num_input_locations,
@@ -148,6 +167,7 @@ class LightGBMModel(BaseModel):
 
     @classmethod
     def from_pretrained(cls, model_id: str, revision: str, **kwargs) -> "LightGBMModel":
+        """Load pretrained model weights and boosters from a local directory or HuggingFace."""
         model = super().from_pretrained(model_id, revision, **kwargs)
         booster_path = (
             f"{model_id}/boosters.pkl"
