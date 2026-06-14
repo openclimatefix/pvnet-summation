@@ -1,0 +1,38 @@
+_target_: pvnet_summation.training.lightning_module.PVNetSummationLightningModule
+
+model:
+  _target_: pvnet_summation.models.attention_model.LocationAttentionModel
+
+  output_quantiles: [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98]
+
+  output_network:
+    _target_: pvnet.models.late_fusion.linear_networks.networks.ResFCNet
+    _partial_: True
+    fc_hidden_features: 32
+    n_res_blocks: 1
+    res_block_layers: 2
+    dropout_frac: 0.1
+
+  num_heads: 4
+  embed_dim: 64
+  num_attention_layers: 2
+  predict_difference_from_sum: true
+  use_horizon_encoding: true
+
+  history_minutes: 2880
+  forecast_minutes: 2160
+  interval_minutes: 15
+  num_input_locations: 12
+
+  num_horizon_attention_layers: 2
+
+  input_quantiles: [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98]
+
+optimizer:
+  _target_: pvnet_summation.optimizers.AdamWReduceLROnPlateau
+  lr: 0.001
+  weight_decay: 0.1
+  amsgrad: true
+  patience: 10
+  factor: 0.1
+  threshold: 0.0
