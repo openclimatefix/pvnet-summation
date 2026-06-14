@@ -9,10 +9,10 @@ from pvnet_summation.models.base_model import BaseModel
 
 
 class AttentionBlock(nn.Module):
-    """Multi-head self-attention with residual connection and layer norm"""
+    """Transformer block with multi-head attention and feed-forward network"""
 
     def __init__(self, embed_dim: int, num_heads: int, dropout: float = 0.1):
-        """Initialise attention block with given embedding dimension, heads and dropout."""
+        """Initialise transformer block with given embedding dimension, heads and dropout."""
         super().__init__()
         self.attention = nn.MultiheadAttention(
             embed_dim=embed_dim,
@@ -20,12 +20,21 @@ class AttentionBlock(nn.Module):
             batch_first=True,
             dropout=dropout,
         )
-        self.norm = nn.LayerNorm(embed_dim)
+        self.ff = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim * 4),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(embed_dim * 4, embed_dim),
+        )
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Run attention block forward."""
+        """Run transformer block forward."""
         attended, _ = self.attention(x, x, x)
-        return self.norm(x + attended)
+        x = self.norm1(x + self.dropout(attended))
+        return self.norm2(x + self.dropout(self.ff(x)))
 
 
 class LocationAttentionModel(BaseModel):
@@ -87,11 +96,13 @@ class LocationAttentionModel(BaseModel):
         loc_features = 1 if input_quantiles is None else len(input_quantiles)
 
         self.loc_embedding = nn.Embedding(num_input_locations, embed_dim)
-        self.loc_proj = nn.Linear(loc_features, embed_dim)
+        self.loc_proj = nn.Sequential(nn.Linear(loc_features, embed_dim), nn.Dropout(0.1))
         self.loc_attention = nn.Sequential(
             *[AttentionBlock(embed_dim, num_heads) for _ in range(num_attention_layers)]
         )
-        self.loc_aggregate = nn.Linear(embed_dim * num_input_locations, embed_dim)
+        self.loc_aggregate = nn.Sequential(
+            nn.Linear(embed_dim * num_input_locations, embed_dim), nn.Dropout(0.1)
+        )
 
         self.horizon_embedding = nn.Embedding(self.forecast_len, embed_dim)
         self.horizon_attention = nn.Sequential(
