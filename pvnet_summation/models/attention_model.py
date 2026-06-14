@@ -12,6 +12,7 @@ class AttentionBlock(nn.Module):
     """Multi-head self-attention with residual connection and layer norm"""
 
     def __init__(self, embed_dim: int, num_heads: int, dropout: float = 0.1):
+        """Initialise attention block with given embedding dimension, heads and dropout."""
         super().__init__()
         self.attention = nn.MultiheadAttention(
             embed_dim=embed_dim,
@@ -22,6 +23,7 @@ class AttentionBlock(nn.Module):
         self.norm = nn.LayerNorm(embed_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Run attention block forward."""
         attended, _ = self.attention(x, x, x)
         return self.norm(x + attended)
 

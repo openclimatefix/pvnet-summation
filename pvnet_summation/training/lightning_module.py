@@ -13,25 +13,6 @@ from pvnet_summation.models.base_model import BaseModel
 from pvnet_summation.optimizers import AbstractOptimizer
 from pvnet_summation.training.plots import plot_sample_forecasts, wandb_line_plot
 
-try:
-    from pvnet_summation.models.lgbm_model import LightGBMModel
-except ImportError:
-    LightGBMModel = None
-
-try:
-    from pvnet_summation.models.xgb_model import XGBModel
-except ImportError:
-    XGBModel = None
-
-
-def _is_boosting_model(model: BaseModel) -> bool:
-    checks = []
-    if LightGBMModel is not None:
-        checks.append(isinstance(model, LightGBMModel))
-    if XGBModel is not None:
-        checks.append(isinstance(model, XGBModel))
-    return any(checks)
-
 
 class PVNetSummationLightningModule(pl.LightningModule):
     """Lightning module for training PVNet models"""
@@ -55,13 +36,6 @@ class PVNetSummationLightningModule(pl.LightningModule):
         # Model must have lr to allow tuning
         # This setting is only used when lr is tuned with callback
         self.lr = None
-
-        self._boosting = _is_boosting_model(model)
-
-        # Accumulators for boosting fit
-        if self._boosting:
-            self._X_accum: list[np.ndarray] = []
-            self._y_accum: list[np.ndarray] = []
 
     def _calculate_quantile_loss(self, y_quantiles: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """Calculate quantile loss.
@@ -88,9 +62,6 @@ class PVNetSummationLightningModule(pl.LightningModule):
 
     def configure_optimizers(self):
         """Configure the optimizers using learning rate found with LR finder if used"""
-        if self._boosting:
-            # Return a no-op optimizer — we never call .step() on it
-            return torch.optim.SGD([self.model._dummy], lr=0.0)
         if self.lr is not None:
             # Use learning rate found by learning rate finder callback
             self._optimizer.lr = self.lr
@@ -115,12 +86,7 @@ class PVNetSummationLightningModule(pl.LightningModule):
 
     def training_step(self, batch: TensorBatch, batch_idx: int) -> torch.Tensor:
         """Run training step"""
-        if self._boosting:
-            return self._boosting_training_step(batch)
-        return self._neural_training_step(batch)
 
-    def _neural_training_step(self, batch: TensorBatch) -> torch.Tensor:
-        """Run neural network training step"""
         y_hat = self.model(batch)
         y = batch["target"]
         losses = self._calculate_common_losses(y, y_hat)
@@ -129,33 +95,6 @@ class PVNetSummationLightningModule(pl.LightningModule):
         if self.model.use_quantile_regression:
             return losses["quantile_loss/train"]
         return losses["MAE/train"]
-
-    def _boosting_training_step(self, batch: TensorBatch) -> torch.Tensor:
-        """Accumulate batch data — actual fit happens in on_train_epoch_end"""
-        X, y = self.model._batch_to_numpy(batch)
-        self._X_accum.append(X)
-        self._y_accum.append(y)
-        # Return zero loss — Lightning requires a tensor
-        return torch.tensor(0.0, requires_grad=True, device=self.model._dummy.device)
-
-    def on_train_epoch_end(self) -> None:
-        """Run on train epoch end — fits boosting model if applicable"""
-        if not self._boosting:
-            return
-        if self.model._is_fitted:
-            self.trainer.should_stop = True
-            return
-
-        X = np.concatenate(self._X_accum, axis=0)
-        y = np.concatenate(self._y_accum, axis=0)
-        self._X_accum = []
-        self._y_accum = []
-
-        print(f"\nFitting {type(self.model).__name__} on {X.shape[0]} samples...")
-        self.model.fit(X, y)
-        print("Fit complete.")
-
-        self.trainer.should_stop = True
 
     def _calculate_val_losses(
         self,
