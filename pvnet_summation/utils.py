@@ -96,7 +96,7 @@ def populate_config_with_data_data_filepaths(config: dict, data_source_paths: di
     """
 
     # Replace the GSP data path
-    config["input_data"]["gsp"]["zarr_path"] =  data_source_paths["gsp"]
+    config["input_data"]["generation"]["zarr_path"] =  data_source_paths["generation"]
 
     # Replace satellite data path if using it
     if "satellite" in config["input_data"]:
