@@ -29,12 +29,11 @@ dependencies = [
     "hydra-core",
     "rich",
     "safetensors",
-    "ruff>=0.16.10",
 ]
 
 [dependency-groups]
 dev=[
-    "ruff",
+    "ruff>=0.16.10",
     "mypy",
     "pytest",
     "pytest-cov",
