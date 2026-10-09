@@ -174,19 +174,19 @@ class StreamedDataModule(LightningDataModule):
         self.seed = seed
         self.dataset_pickle_dir = dataset_pickle_dir
 
-        self._dataloader_kwargs = dict(
-            batch_size=None,
-            batch_sampler=None,
-            num_workers=num_workers,
-            collate_fn=None,
-            pin_memory=False,
-            drop_last=False,
-            timeout=0,
-            worker_init_fn=None,
-            prefetch_factor=prefetch_factor,
-            persistent_workers=persistent_workers,
-            multiprocessing_context="spawn" if num_workers > 0 else None,
-        )
+        self._dataloader_kwargs = {
+            "batch_size": None,
+            "batch_sampler": None,
+            "num_workers": num_workers,
+            "collate_fn": None,
+            "pin_memory": False,
+            "drop_last": False,
+            "timeout": 0,
+            "worker_init_fn": None,
+            "prefetch_factor": prefetch_factor,
+            "persistent_workers": persistent_workers,
+            "multiprocessing_context": "spawn" if num_workers > 0 else None,
+        }
 
     def setup(self, stage: str | None = None):
         """Called once to prepare the datasets."""
@@ -282,20 +282,20 @@ class PresavedDataModule(LightningDataModule):
         super().__init__()
         self.sample_dir = sample_dir
 
-        self._dataloader_kwargs = dict(
-            batch_size=batch_size,
-            sampler=None,
-            batch_sampler=None,
-            num_workers=num_workers,
-            collate_fn=None if batch_size is None else default_collate,
-            pin_memory=False,
-            drop_last=False,
-            timeout=0,
-            worker_init_fn=None,
-            prefetch_factor=prefetch_factor,
-            persistent_workers=persistent_workers,
-            multiprocessing_context="spawn" if num_workers > 0 else None,
-        )
+        self._dataloader_kwargs = {
+            "batch_size": batch_size,
+            "sampler": None,
+            "batch_sampler": None,
+            "num_workers": num_workers,
+            "collate_fn": None if batch_size is None else default_collate,
+            "pin_memory": False,
+            "drop_last": False,
+            "timeout": 0,
+            "worker_init_fn": None,
+            "prefetch_factor": prefetch_factor,
+            "persistent_workers": persistent_workers,
+            "multiprocessing_context": "spawn" if num_workers > 0 else None,
+        }
 
     def train_dataloader(self, shuffle: bool = True) -> DataLoader:
         """Construct train dataloader"""

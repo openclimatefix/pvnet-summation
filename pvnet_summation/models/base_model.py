@@ -23,6 +23,8 @@ from pvnet_summation.utils import (
     PYTORCH_WEIGHTS_NAME,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def santize_datamodule(config: dict) -> dict:
     """Create new datamodule config which only keeps the details required for inference"""
@@ -76,11 +78,11 @@ def download_from_hf(
                 raise Exception(
                     f"Failed to download {filename} from {repo_id} after {max_retries} attempts."
                 ) from e
-            logging.warning(
-                (
+            logger.warning(
+                
                     f"Attempt {attempt}/{max_retries} failed to download {filename} "
                     f"from {repo_id}. Retrying in {wait_time} seconds..."
-                )
+                
             )
             time.sleep(wait_time)
 

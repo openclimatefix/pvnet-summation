@@ -67,7 +67,6 @@ class AbstractOptimizer(ABC):
     @abstractmethod
     def __call__(self):
         """Abstract call"""
-        pass
 
 
 class Adam(AbstractOptimizer):
@@ -169,7 +168,7 @@ class AdamWReduceLROnPlateau(AbstractOptimizer):
 
         group_args = []
 
-        for key in self.lr.keys():
+        for key in self.lr:
             if key == "default":
                 continue
 

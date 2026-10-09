@@ -36,8 +36,8 @@ class HorizonDenseModel(BaseModel):
             num_input_locations: The number of input locations (e.g. number of GSPs)
             input_quantiles: A list of float (0.0, 1.0) quantiles which PVNet predicts for. If set 
                 to None we assume PVNet predicts a single value
-            history_minutes (int): Length of the GSP history period in minutes
-            forecast_minutes (int): Length of the GSP forecast period in minutes
+            history_minutes (int): Length of the generation history period in minutes
+            forecast_minutes (int): Length of the generation forecast period in minutes
             interval_minutes: The interval in minutes between each timestep in the data
             output_network: A partially instantiated pytorch Module class used top predict the 
                 outturn at each horizon.

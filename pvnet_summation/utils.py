@@ -96,17 +96,17 @@ def populate_config_with_data_data_filepaths(config: dict, data_source_paths: di
     """
 
     # Replace the GSP data path
-    config["input_data"]["gsp"]["zarr_path"] =  data_source_paths["gsp"]
+    config["input_data"]["generation"]["zarr_path"] =  data_source_paths["generation"]
 
     # Replace satellite data path if using it
-    if "satellite" in config["input_data"]:
-        if config["input_data"]["satellite"]["zarr_path"] != "":
+    if (("satellite" in config["input_data"]) and 
+        (config["input_data"]["satellite"]["zarr_path"] != "")):
             config["input_data"]["satellite"]["zarr_path"] = data_source_paths["satellite"]
 
     # NWP is nested so much be treated separately
     if "nwp" in config["input_data"]:
         nwp_config = config["input_data"]["nwp"]
-        for nwp_source in nwp_config.keys():
+        for nwp_source in nwp_config:
             provider = nwp_config[nwp_source]["provider"]
             assert provider in data_source_paths["nwp"], f"Missing NWP path: {provider}"
             nwp_config[nwp_source]["zarr_path"] = data_source_paths["nwp"][provider]

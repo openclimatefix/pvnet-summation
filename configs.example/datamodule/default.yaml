@@ -1,6 +1,6 @@
 # list the filepaths to data sources required by PVNet to make regional predictions
 data_source_paths:
-    gsp: PLACESHOLDER.zarr
+    generation: PLACESHOLDER.zarr
     satellite: 
         - PLACESHOLDER_PART1.zarr
         - PLACESHOLDER_PART2.zarr
@@ -26,11 +26,9 @@ pvnet_model:
     revision: null
 
 train_period:
-    - null
-    - '2021-12-31'
+    - [null, '2021-12-31']
 val_period:
-    - '2022-01-01'
-    - '2022-12-31'
+    - ['2022-01-01', '2022-12-31']
 
 seed: "${seed}"
 
