@@ -1,4 +1,4 @@
-"""Simple model which only uses outputs of PVNet for all GSPs"""
+"""Simple model which only uses outputs of PVNet for all locations"""
 
 import numpy as np
 import torch

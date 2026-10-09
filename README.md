@@ -1,9 +1,9 @@
 # PVNet summation
 [![ease of contribution: hard](https://img.shields.io/badge/ease%20of%20contribution:%20hard-bb2629)](https://github.com/openclimatefix/ocf-meta-repo?tab=readme-ov-file#overview-of-ocfs-nowcasting-repositories)
 
-This project is used for training a model to sum the GSP predictions of [PVNet](https://github.com/openclimatefix/pvnet) into a national estimate.
+This project is used for training a model to sum the regional predictions of [PVNet](https://github.com/openclimatefix/pvnet) into a national estimate.
 
-Using the summation model to sum the GSP predictions rather than doing a simple sum increases the accuracy of the national predictions and can be configured to produce estimates of the uncertainty range of the national estimate. See the [PVNet](https://github.com/openclimatefix/pvnet) repo for more details and our paper.
+Using the summation model to sum the regional predictions rather than doing a simple sum increases the accuracy of the national predictions and can be configured to produce estimates of the uncertainty range of the national estimate. See the [PVNet](https://github.com/openclimatefix/pvnet) repo for more details and our paper.
 
 
 ## Setup / Installation
@@ -36,8 +36,8 @@ You will be making local amendments to these configs.
 ### Datasets
 
 The datasets required are the same as documented in
-[PVNet](https://github.com/openclimatefix/pvnet). The only addition is that you will need PVLive
-data for the national sum i.e. GSP ID 0.
+[PVNet](https://github.com/openclimatefix/pvnet). The only addition is that you will need PV generation
+data for the national sum with location ID 0.
 
 
 ### Training PVNet_summation
