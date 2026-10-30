@@ -19,5 +19,5 @@ def test_model_trainer_fit(model, presaved_samples_dir):
         optimizer=AdamW()
     )
 
-    trainer = lightning.pytorch.trainer.trainer.Trainer(fast_dev_run=True)
+    trainer = lightning.pytorch.trainer.trainer.Trainer(fast_dev_run=True, accelerator="cpu")
     trainer.fit(model=model_module, datamodule=datamodule)
